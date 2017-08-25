@@ -18,5 +18,8 @@ volumes. Final results are written to `data/nii`.
 To use `pix2pix` we need image pairs we can create them from `data/nii` with
 `matlab/convert.m` in `data/png`. Manually remove slices with reduced MRI.
 
+To use the present tensorflow implementation you need to convert data from
+`data/nii` to `data/tfr` in tfrecord format with `python convert.py`.
+
 [RIRE]: http://www.insight-journal.org/rire
 [SPM12]: http://www.fil.ion.ucl.ac.uk/spm/software/spm12/
