@@ -25,7 +25,7 @@ if meta.Modality == 'MR'
 end
 
 % we assume patient is aligned with axes
-meta.ImageOrientationPatient = [1 0 0; 0 1 0];
+meta.ImageOrientationPatient = [1 0 0 0 1 0];
 
 vol = uint16(volume-min(volume(:)));
 
@@ -36,10 +36,10 @@ meta.SeriesInstanceUID = dicomuid();
 meta.AcquisitionNumber = 1;
 
 for i = 1:meta.Slices
-    z = 4*i-56;
+    meta.SliceLocation = meta.SliceThickness*(i-meta.Slices/2);
     meta.InstanceNumber = i;
     meta.SOPInstanceUID = dicomuid();
-    meta.ImagePositionPatient = [-110 -110 z];
+    meta.ImagePositionPatient = [0 0 meta.SliceLocation];
     
     dicomwrite(vol(:, :, i), ...
         fullfile(filepath, sprintf('%06d.dcm', i)), ...

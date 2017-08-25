@@ -1,4 +1,4 @@
-function filepaths = listFilePaths(filepath)
+function filepaths = list_filepaths(filepath)
 filenames = dir(filepath);
 filepaths = cell(1, numel(filenames));
 
