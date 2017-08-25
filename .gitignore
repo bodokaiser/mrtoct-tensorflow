@@ -1,0 +1,4 @@
+matlab/spm12
+data/raw/*
+data/png/*
+data/nii/*

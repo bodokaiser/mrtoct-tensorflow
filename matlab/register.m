@@ -1,12 +1,14 @@
 % path to data directory
-datadir = '../data';
+sourcedir = '../data/raw';
+targetdir = '../data/nii';
 
 % volume directories
 ctdir = 'ct';
 mrdir = 'mr_T1';
 
-filenames = dir(datadir);
+filenames = dir(sourcedir);
 filenames(~[filenames.isdir]) = [];
+filenames(1:2) = [];
 
 header_filename = 'header.ascii';
 volume_filename = 'image.bin';
@@ -68,10 +70,15 @@ for i = 1:numel(filenames)
             spm_file(mov, 'prefix', 'r');
             
             % move final files back to data
-            movefile('ct.nii', fullfile(filepath, 'ct.nii'));
-            movefile('rmr.nii', fullfile(filepath, 'mr.nii'));
+            outdir = fullfile(olddir, targetdir, filename.name);
+            mkdir(outdir);
+            movefile('ct.nii', fullfile(outdir, 'ct.nii'));
+            movefile('rmr.nii', fullfile(outdir, 'mr.nii'));
+            delete('mr.nii');
         end
     end
 end
 
 cd(olddir);
+
+clear;
