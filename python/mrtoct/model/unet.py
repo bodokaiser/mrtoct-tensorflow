@@ -3,6 +3,8 @@ import tensorflow as tf
 slim = tf.contrib.slim
 
 def unet(inputs):
-    net = slim.conv2d(inputs, 256, [3, 3], scope='conv')
+    with slim.arg_scope([slim.conv2d]):
+        net = slim.conv2d(inputs, 256, 3)
+        net = slim.conv2d(net, 1, 3)
 
-    return net(inputs)
+    return net

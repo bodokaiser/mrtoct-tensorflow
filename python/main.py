@@ -6,13 +6,32 @@ import tensorflow as tf
 
 from mrtoct import model
 from mrtoct import ioutil
-from mrtoct import loss
+from mrtoct import losses
+
+from matplotlib import pyplot as plt
 
 def listdirs(path):
     isdir = lambda f: os.path.isdir(os.path.join(path, f))
     return list(filter(isdir, os.listdir(path)))
 
 TEMPDIR = '/tmp/mrtoct'
+
+def process(image):
+    # normalize to [0, 1]
+    image = tf.subtract(image, tf.reduce_min(image))
+    image = tf.divide(image, tf.reduce_max(image))
+    # normalize to [-1,+1]
+    image = tf.multiply(image, 2)
+    image = tf.subtract(image, 1)
+    # float64 to float32
+    image = tf.cast(image, tf.float32)
+    # HW to HWC
+    return tf.expand_dims(image, -1)
+
+def parse(example):
+    ct, mr = ioutil.decode_example(example)
+
+    return process(ct), process(mr)
 
 def train(testdir, traindir, resultdir):
     if not os.path.exists(resultdir):
@@ -23,30 +42,31 @@ def train(testdir, traindir, resultdir):
     test_records = [os.path.join(testdir, f) for f in os.listdir(testdir)]
     train_records = [os.path.join(traindir, f) for f in os.listdir(traindir)]
 
-    test_dataset = tf.contrib.data.TFRecordDataset(test_records).map(
-        ioutil.decode_example)
-    train_dataset = tf.contrib.data.TFRecordDataset(train_records).map(
-        ioutil.decode_example)
+    test_dataset = tf.contrib.data.TFRecordDataset(test_records).map(parse).batch(4)
+    train_dataset = tf.contrib.data.TFRecordDataset(train_records).map(parse).batch(4)
 
     iterator = tf.contrib.data.Iterator.from_string_handle(handle,
         train_dataset.output_types, train_dataset.output_shapes)
 
-    next_element = iterator.get_next()
+    inputs, targets = iterator.get_next()
 
     test_iterator = test_dataset.make_one_shot_iterator()
     train_iterator = train_dataset.make_one_shot_iterator()
 
-    with tf.Session() as sess:
-        test_handle = sess.run(test_iterator.string_handle())
-        train_handle = sess.run(train_iterator.string_handle())
+    test_handle_op = test_iterator.string_handle()
+    train_handle_op = train_iterator.string_handle()
 
-        for i in range(20):
-            inputs, targets = sess.run(next_element, feed_dict={
-                handle: train_handle})
-            outputs = model.unet(inputs)
+    outputs = model.unet(inputs)
 
-            print(model.mse(outputs, targets))
+    loss = tf.losses.mean_squared_error(outputs, targets)
+    train = tf.train.GradientDescentOptimizer(1e-7).minimize(loss)
 
+    with tf.train.MonitoredTrainingSession() as sess:
+        test_handle, train_handle = sess.run([
+            test_handle_op, train_handle_op])
+
+        while not sess.should_stop():
+            print('loss', sess.run(loss, feed_dict={handle: train_handle}))
 
 def convert(inputdir, outputdir):
     for d in listdirs(inputdir):
