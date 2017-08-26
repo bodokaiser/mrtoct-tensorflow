@@ -4,7 +4,7 @@ import os
 import nibabel as nb
 import tensorflow as tf
 
-from ioutil import tfrecord
+import ioutil
 
 def subdirs(path):
     return list(filter(lambda f: os.path.isdir(os.path.join(path, f)),
@@ -14,18 +14,19 @@ def main(args):
     for p in subdirs(args.inputdir):
         filename = os.path.join(args.outputdir, f'{p}.tfrecord')
 
-        ct = nb.load(os.path.join(args.inputdir, p, 'ct.nii')).get_data()
-        mr = nb.load(os.path.join(args.inputdir, p, 'mr.nii')).get_data()
+        ctname = os.path.join(args.inputdir, p, 'ct.nii')
+        ctvol = nb.load(ctname).get_data()
+
+        mrname = os.path.join(args.inputdir, p, 'mr.nii')
+        mrvol = nb.load(mrname).get_data()
 
         with tf.python_io.TFRecordWriter(filename) as writer:
-            assert ct.shape[-1] == mr.shape[-1], 'incompatible shapes'
-
-            for i in range(ct.shape[-1]):
-                writer.write(tfrecord.encode_example(ct[:,:,i], mr[:,:,i]))
+            for i in range(ctvol.shape[-1]):
+                writer.write(ioutil.encode_example(ctvol[:,:,i], mrvol[:,:,i]))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--inputdir', default='../data/nii')
-    parser.add_argument('--outputdir', default='../data/tfr')
+    parser.add_argument('--outputdir', default='../data/tfrecord')
 
     main(parser.parse_args())

@@ -16,7 +16,9 @@ volumes. Final results are written to `data/nii`.
 ### Conversion
 
 To use `pix2pix` we need image pairs we can create them from `data/nii` with
-`matlab/convert.m` in `data/png`. Manually remove slices with reduced MRI.
+`matlab/convert.m` in `data/png`. Manually remove slices with reduced MRI
+and run `convert image.png -define png:color-type=2 result.png` as `pix2pix`
+only takes color images.
 
 To use the present tensorflow implementation you need to convert data from
 `data/nii` to `data/tfr` in tfrecord format with `python convert.py`.
