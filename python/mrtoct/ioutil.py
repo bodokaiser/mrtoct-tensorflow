@@ -1,5 +1,9 @@
 import numpy as np
+import nibabel as nib
 import tensorflow as tf
+
+def read_nifti(filename):
+    return nib.load(filename).get_data()
 
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))

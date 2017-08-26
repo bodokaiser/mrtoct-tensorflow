@@ -6,7 +6,6 @@ import tensorflow as tf
 
 from mrtoct import model
 from mrtoct import ioutil
-from mrtoct import losses
 
 from matplotlib import pyplot as plt
 
