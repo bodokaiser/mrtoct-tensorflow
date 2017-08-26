@@ -4,9 +4,9 @@ import tempfile
 
 import tensorflow as tf
 
-from matplotlib import pyplot as plt
-
+from mrtoct import model
 from mrtoct import ioutil
+from mrtoct import loss
 
 def listdirs(path):
     isdir = lambda f: os.path.isdir(os.path.join(path, f))
@@ -37,16 +37,16 @@ def train(testdir, traindir, resultdir):
     train_iterator = train_dataset.make_one_shot_iterator()
 
     with tf.Session() as sess:
+        test_handle = sess.run(test_iterator.string_handle())
+        train_handle = sess.run(train_iterator.string_handle())
+
         for i in range(20):
-            test_handle = sess.run(test_iterator.string_handle())
-            train_handle = sess.run(train_iterator.string_handle())
+            inputs, targets = sess.run(next_element, feed_dict={
+                handle: train_handle})
+            outputs = model.unet(inputs)
 
-            res = sess.run(next_element, feed_dict={handle: train_handle})
+            print(model.mse(outputs, targets))
 
-            fig, axes = plt.subplots(1, 2)
-            axes[0].imshow(res[0])
-            axes[1].imshow(res[1])
-            plt.show()
 
 def convert(inputdir, outputdir):
     for d in listdirs(inputdir):
