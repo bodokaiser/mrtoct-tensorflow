@@ -14,31 +14,19 @@ def _float_feature(value):
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
-def encode_example(mrslice, ctslice):
-    assert len(mrslice.shape) == 2
-    assert len(ctslice.shape) == 2
-
+def encode_example(image):
     return tf.train.Example(features=tf.train.Features(feature={
-        'ct/image': _bytes_feature(ctslice.astype(np.int32).tobytes()),
-        'ct/shape': _int64_feature(ctslice.shape),
-
-        'mr/image': _bytes_feature(mrslice.astype(np.int32).tobytes()),
-        'mr/shape': _int64_feature(mrslice.shape),
+        'image': _bytes_feature(image.astype(np.int32).tobytes()),
+        'shape': _int64_feature(image.shape),
     })).SerializeToString()
 
 def decode_example(example):
     features = tf.parse_single_example(example, features={
-        'ct/image': tf.FixedLenFeature([], tf.string),
-        'ct/shape': tf.FixedLenFeature([2], tf.int64),
-
-        'mr/image': tf.FixedLenFeature([], tf.string),
-        'mr/shape': tf.FixedLenFeature([2], tf.int64),
+        'image': tf.FixedLenFeature([], tf.string),
+        'shape': tf.FixedLenFeature([2], tf.int64),
     })
 
-    ctslice = tf.reshape(tf.decode_raw(features['ct/image'], tf.int32),
-        tf.cast(features['ct/shape'], tf.int32))
+    shape = tf.cast(features['shape'], tf.int32)
+    image = tf.reshape(tf.decode_raw(features['image'], tf.int32), shape)
 
-    mrslice = tf.reshape(tf.decode_raw(features['mr/image'], tf.int32),
-        tf.cast(features['mr/shape'], tf.int32))
-
-    return ctslice, mrslice
+    return tf.expand_dims(image, -1)
