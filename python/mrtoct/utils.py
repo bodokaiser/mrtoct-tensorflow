@@ -12,4 +12,8 @@ def normalize(tensor):
     """Normalizes the tensor to the range [-1, +1]."""
     tensor -= tf.reduce_min(tensor)
     tensor /= tf.reduce_max(tensor)
-    return 2*tensor - 1
+    return tf.subtract(tf.multiply(tensor, 2), 1)
+
+def denormalize(tensor):
+    """Denormalizes the tensor to the range [0, 1]."""
+    return tf.divide(tf.add(tensor, 1), 2)
