@@ -32,12 +32,12 @@ def main(args):
 
     with tf.name_scope('model'):
         inputs, targets = iterator.get_next()
-        outputs = tf.layers.conv2d(inputs, 1, 3, padding='SAME')
-        #outputs = model.unet(inputs)
+        #outputs = tf.layers.conv2d(inputs, 1, 3, padding='SAME')
+        outputs = model.unet(inputs)
 
-        tf.summary.image('inputs', utils.denormalize(inputs))
-        tf.summary.image('outputs', utils.denormalize(outputs))
-        tf.summary.image('targets', utils.denormalize(targets))
+        tf.summary.image('inputs', inputs)
+        tf.summary.image('outputs', outputs)
+        tf.summary.image('targets', targets)
 
     with tf.name_scope('loss'):
         mse_op = tf.losses.mean_squared_error(targets, outputs)
@@ -49,7 +49,7 @@ def main(args):
     with tf.name_scope('train'):
         mode = tf.placeholder(tf.string)
         step_op = tf.train.get_or_create_global_step()
-        train_op = tf.train.AdamOptimizer(1e-3).minimize(loss_op, step_op)
+        train_op = tf.train.AdamOptimizer(1e-4).minimize(loss_op, step_op)
 
     summary_op = tf.summary.merge_all()
 

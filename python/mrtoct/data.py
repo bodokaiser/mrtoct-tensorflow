@@ -6,7 +6,7 @@ from mrtoct import utils
 
 def parse(example):
     image = ioutil.decode_example(example)
-    return tf.cast(utils.normalize(image), tf.float32)
+    return tf.image.per_image_standardization(image)
 
 def filter_nans(ct, mr):
     return tf.logical_not(utils.has_nan(mr))
