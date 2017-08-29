@@ -1,6 +1,5 @@
 import argparse
 import os
-
 import tensorflow as tf
 
 from mrtoct import data
@@ -8,20 +7,19 @@ from mrtoct import model
 
 TEMPDIR = '/tmp/mrtoct'
 
-def _make_zipped_dataset(path):
-    return tf.contrib.data.Dataset.zip((
-        data.make_dataset(os.path.join(path, '*ct.tfrecord')),
-        data.make_dataset(os.path.join(path, '*mr.tfrecord')),
-    ))
-
 def main(args):
     tf.logging.set_verbosity(tf.logging.INFO)
 
     with tf.name_scope('data'):
-        train_dataset = _make_zipped_dataset(args.train_path
-            ).shuffle(1000).batch(16).repeat(args.num_epochs)
-        valid_dataset = _make_zipped_dataset(args.valid_path
-            ).batch(16).repeat()
+        train_dataset = (data.make_zipped_dataset(args.train_path)
+            .filter(data.filter_nans)
+            .filter(data.filter_incomplete)
+            .shuffle(1000).batch(16)
+            .repeat(args.num_epochs))
+        valid_dataset = (data.make_zipped_dataset(args.valid_path)
+            .filter(data.filter_nans)
+            .filter(data.filter_incomplete)
+            .batch(16).repeat())
 
         iterator = data.TrainValidIterator(train_dataset, valid_dataset)
 
