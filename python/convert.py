@@ -3,7 +3,8 @@ import os
 
 import tensorflow as tf
 
-from mrtoct import ioutil
+from mrtoct.ioutil import nifti
+from mrtoct.ioutil import tfrecord
 
 def main(args):
     for e in os.listdir(args.input_path):
@@ -16,10 +17,10 @@ def main(args):
             target = os.path.join(args.output_path, f'{e}{m}.tfrecord')
 
             with tf.python_io.TFRecordWriter(target) as writer:
-                volume = ioutil.read_nifti(os.path.join(source, f'{m}.nii'))
+                volume = nifti.read(os.path.join(source, f'{m}.nii'))
 
                 for i in range(volume.shape[-1]):
-                    writer.write(ioutil.encode_example(volume[:,:,i]))
+                    writer.write(tfrecord.encode(volume[:,:,i]))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

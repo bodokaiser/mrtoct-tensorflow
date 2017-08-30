@@ -1,22 +1,22 @@
 import os
 import tensorflow as tf
 
-from mrtoct import ioutil
-from mrtoct import utils
+from mrtoct.ioutil import tfrecord
+from mrtoct.utils import count, has_nan
 
 def parse(example):
-    image = ioutil.decode_example(example)
+    image = tfrecord.decode(example)
     return tf.image.per_image_standardization(image)
 
 def filter_nans(mr, ct):
-    return tf.logical_not(tf.logical_or(utils.has_nan(ct), utils.has_nan(mr)))
+    return tf.logical_not(tf.logical_or(has_nan(ct), has_nan(mr)))
 
 INCOMPLETE_SCALE = 1.3
 
 def filter_incomplete(mr, ct):
-    ct_sum = utils.count(tf.greater(ct, -1))
-    mr_sum = utils.count(tf.greater(mr, -1))
-    return tf.greater(tf.multiply(mr_sum, INCOMPLETE_SCALE), ct_sum)
+    ct_sum = count(tf.greater(ct, -1))
+    mr_sum = count(tf.greater(mr, -1))
+    return tf.greater(tf.multiply(ct_sum, INCOMPLETE_SCALE), mr_sum)
 
 def make_dataset(fileexpr):
     return tf.contrib.data.Dataset.list_files(fileexpr).flat_map(
@@ -28,28 +28,6 @@ def make_zipped_dataset(filepath):
         make_dataset(os.path.join(filepath, '*ct.tfrecord')),
     ))
 
-class TrainValidIterator:
-
-    def __init__(self, train_dataset, valid_dataset):
-        handle = tf.placeholder(tf.string, shape=[])
-
-        train_iterator = train_dataset.make_one_shot_iterator()
-        valid_iterator = valid_dataset.make_one_shot_iterator()
-
-        self._iterator = tf.contrib.data.Iterator.from_string_handle(handle,
-            train_dataset.output_types, train_dataset.output_shapes)
-        self._train_handle = train_iterator.string_handle()
-        self._valid_handle = valid_iterator.string_handle()
-        self._handle = handle
-
-    def get_next(self):
-        return self._iterator.get_next()
-
-    def get_handle(self):
-        return self._handle
-
-    def get_train_handle(self):
-        return self._train_handle
-
-    def get_valid_handle(self):
-        return self._valid_handle
+def make_iterator_from_handle(handle, dataset):
+    return tf.contrib.data.Iterator.from_string_handle(handle,
+        dataset.output_types, dataset.output_shapes)

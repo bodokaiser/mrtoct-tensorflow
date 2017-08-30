@@ -3,8 +3,7 @@ import os
 import tensorflow as tf
 
 from mrtoct import data
-from mrtoct import model
-from mrtoct import utils
+from mrtoct.model.generator import unet
 
 TEMPDIR = '/tmp/mrtoct'
 
@@ -22,18 +21,21 @@ def main(args):
             .filter(data.filter_incomplete)
             .batch(4).repeat())
 
-        iterator = data.TrainValidIterator(train_dataset, valid_dataset)
+        handle = tf.placeholder(tf.string, shape=[])
 
-        handle = iterator.get_handle()
+        iterator = data.make_iterator_from_handle(handle, train_dataset)
+        train_iterator = train_dataset.make_one_shot_iterator()
+        valid_iterator = valid_dataset.make_one_shot_iterator()
+
         handle_ops = [
-            iterator.get_train_handle(),
-            iterator.get_valid_handle(),
+            train_iterator.string_handle(),
+            valid_iterator.string_handle(),
         ]
 
     with tf.name_scope('model'):
         inputs, targets = iterator.get_next()
-        #outputs = tf.layers.conv2d(inputs, 1, 3, padding='SAME')
-        outputs = model.unet(inputs)
+        outputs = tf.layers.conv2d(inputs, 1, 3, padding='SAME')
+        #outputs = unet.model(inputs)
 
         tf.summary.image('inputs', inputs)
         tf.summary.image('outputs', outputs)
