@@ -3,6 +3,7 @@ import os
 import tensorflow as tf
 
 from mrtoct import data
+from mrtoct.model import estimator
 from mrtoct.model.generator import unet
 
 TEMPDIR = '/tmp/mrtoct'
@@ -21,89 +22,16 @@ def main(args):
             .filter(data.filter_incomplete)
             .batch(10).repeat())
 
-        handle = tf.placeholder(tf.string, shape=[])
-
-        iterator = data.make_iterator_from_handle(handle, train_dataset)
-        train_iterator = train_dataset.make_one_shot_iterator()
-        valid_iterator = valid_dataset.make_one_shot_iterator()
-
-        handle_ops = [
-            train_iterator.string_handle(),
-            valid_iterator.string_handle(),
-        ]
-
-    with tf.name_scope('model'):
-        inputs, targets = iterator.get_next()
-        outputs = tf.layers.conv2d(inputs, 1, 3, padding='SAME')
-        #outputs = unet.model(inputs)
-
-        tf.summary.image('inputs', inputs)
-        tf.summary.image('outputs', outputs)
-        tf.summary.image('targets', targets)
-
-    with tf.name_scope('loss'):
-        mse_op = tf.losses.mean_squared_error(targets, outputs)
-        loss_op = mse_op
-
-        tf.summary.scalar('mse', mse_op)
-        tf.summary.scalar('total', loss_op)
-
-    with tf.name_scope('train'):
-        mode = tf.placeholder(tf.string)
-        step_op = tf.train.get_or_create_global_step()
-        train_op = tf.train.AdamOptimizer(1e-4).minimize(loss_op, step_op)
-
-    summary_op = tf.summary.merge_all()
-
-    class FeedHook(tf.train.SessionRunHook):
-
-        def __init__(self):
-            self.summary = None
-            self.writers = {
-                'train': tf.summary.FileWriter(os.path.join(args.result_path,
-                    'training'), tf.get_default_graph()),
-                'valid': tf.summary.FileWriter(os.path.join(args.result_path,
-                    'validation')),
-            }
-
-        def after_create_session(self, sess, coord):
-            self.train_handle, self.valid_handle = sess.run(handle_ops)
-            self.step = sess.run(step_op)
-
-        def before_run(self, run_context):
-            fetches = [step_op, summary_op]
-
-            if self.step % 10 == 0:
-                feed_dict = {handle: self.valid_handle, mode: 'valid'}
-            else:
-                feed_dict = {handle: self.train_handle, mode: 'train'}
-
-            if self.summary is not None:
-                self.writers[feed_dict[mode]].add_summary(
-                    self.summary, self.step)
-
-            return tf.train.SessionRunArgs(fetches, feed_dict)
-
-        def after_run(self, run_context, run_values):
-            self.step, self.summary = run_values.results
-
-    config = dict(
-        hooks=[
-            FeedHook(),
-            tf.train.NanTensorHook(loss_op),
-            tf.train.LoggingTensorHook({
-                'loss': loss_op,
-                'mode': mode,
-            }, every_n_secs=120),
-        ],
-        save_checkpoint_secs=600,
-        save_summaries_secs=None,
-        checkpoint_dir=args.result_path,
-    )
-
-    with tf.train.MonitoredTrainingSession(**config) as sess:
-        while not sess.should_stop():
-            sess.run(train_op)
+    experiment = tf.contrib.learn.Experiment(
+        estimator=tf.estimator.Estimator(
+            model_fn=estimator.model_fn,
+            model_dir=args.result_path,
+            config = tf.contrib.learn.RunConfig(
+                model_dir=args.result_path),
+            params={'lr': 1e-3}),
+        train_input_fn=estimator.make_input_fn(train_dataset),
+        eval_input_fn=estimator.make_input_fn(valid_dataset))
+    experiment.train_and_evaluate()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
