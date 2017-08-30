@@ -8,12 +8,12 @@ def parse(example):
     image = ioutil.decode_example(example)
     return tf.image.per_image_standardization(image)
 
-def filter_nans(ct, mr):
-    return tf.logical_not(utils.has_nan(mr))
+def filter_nans(mr, ct):
+    return tf.logical_not(tf.logical_or(utils.has_nan(ct), utils.has_nan(mr)))
 
 INCOMPLETE_SCALE = 1.3
 
-def filter_incomplete(ct, mr):
+def filter_incomplete(mr, ct):
     ct_sum = utils.count(tf.greater(ct, -1))
     mr_sum = utils.count(tf.greater(mr, -1))
     return tf.greater(tf.multiply(mr_sum, INCOMPLETE_SCALE), ct_sum)
@@ -24,8 +24,8 @@ def make_dataset(fileexpr):
 
 def make_zipped_dataset(filepath):
     return tf.contrib.data.Dataset.zip((
-        make_dataset(os.path.join(filepath, '*ct.tfrecord')),
         make_dataset(os.path.join(filepath, '*mr.tfrecord')),
+        make_dataset(os.path.join(filepath, '*ct.tfrecord')),
     ))
 
 class TrainValidIterator:
