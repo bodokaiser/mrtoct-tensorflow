@@ -14,12 +14,12 @@ def main(args):
         train_dataset = (data.make_zipped_dataset(args.train_path)
             .filter(data.filter_nans)
             .filter(data.filter_incomplete)
-            .shuffle(1000).batch(4)
+            .shuffle(2000).batch(10)
             .repeat(args.num_epochs))
         valid_dataset = (data.make_zipped_dataset(args.valid_path)
             .filter(data.filter_nans)
             .filter(data.filter_incomplete)
-            .batch(4).repeat())
+            .batch(10).repeat())
 
         handle = tf.placeholder(tf.string, shape=[])
 

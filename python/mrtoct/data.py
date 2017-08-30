@@ -11,12 +11,12 @@ def parse(example):
 def filter_nans(mr, ct):
     return tf.logical_not(tf.logical_or(has_nan(ct), has_nan(mr)))
 
-INCOMPLETE_SCALE = 1.3
+INCOMPLETE_SCALE = 1.4
 
 def filter_incomplete(mr, ct):
-    ct_sum = count(tf.greater(ct, -1))
-    mr_sum = count(tf.greater(mr, -1))
-    return tf.greater(tf.multiply(ct_sum, INCOMPLETE_SCALE), mr_sum)
+    mr_sum = count(tf.greater(mr, tf.reduce_min(mr)))
+    ct_sum = count(tf.greater(ct, tf.reduce_min(ct)))
+    return tf.greater(tf.multiply(mr_sum, INCOMPLETE_SCALE), ct_sum)
 
 def make_dataset(fileexpr):
     return tf.contrib.data.Dataset.list_files(fileexpr).flat_map(
