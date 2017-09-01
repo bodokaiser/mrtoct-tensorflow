@@ -4,8 +4,7 @@ def model_fn(features, labels, mode, params):
     inputs, targets = features['inputs'], labels['targets']
 
     with tf.name_scope('model'):
-        outputs = tf.layers.conv2d(inputs, 1, 3, padding='SAME')
-        #outputs = unet.model(inputs)
+        outputs = params['generator'](inputs)
 
         tf.summary.image('inputs', inputs)
         tf.summary.image('outputs', outputs)
