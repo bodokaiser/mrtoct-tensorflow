@@ -2,36 +2,63 @@ import argparse
 import os
 import tensorflow as tf
 
-from mrtoct import data
+from mrtoct.data import make_zipped_dataset
+from mrtoct.data import filter_nans, filter_incomplete
 from mrtoct.model import estimator
 from mrtoct.model.generator import unet, dummy
+from mrtoct.model.discriminator import cnn, pixel
 
 TEMPDIR = '/tmp/mrtoct'
 
 def main(train_path, valid_path, result_path, params, batch_size, num_epochs):
     tf.logging.set_verbosity(tf.logging.INFO)
 
-    with tf.name_scope('data'):
-        train_dataset = (data.make_zipped_dataset(train_path)
-            .filter(data.filter_nans)
-            .filter(data.filter_incomplete)
+    with tf.name_scope('dataset'):
+        train_dataset = (make_zipped_dataset(train_path)
+            .filter(filter_nans)
+            .filter(filter_incomplete)
             .shuffle(2000).batch(batch_size)
             .repeat(num_epochs))
-        valid_dataset = (data.make_zipped_dataset(valid_path)
-            .filter(data.filter_nans)
-            .filter(data.filter_incomplete)
+        valid_dataset = (make_zipped_dataset(valid_path)
+            .filter(filter_nans)
+            .filter(filter_incomplete)
             .batch(batch_size).repeat())
 
-    experiment = tf.contrib.learn.Experiment(
-        estimator=tf.estimator.Estimator(
-            model_fn=estimator.model_fn,
-            model_dir=args.result_path,
-            config = tf.contrib.learn.RunConfig(
-                model_dir=args.result_path),
-            params=params),
-        train_input_fn=estimator.make_input_fn(train_dataset),
-        eval_input_fn=estimator.make_input_fn(valid_dataset))
-    experiment.train_and_evaluate()
+    with tf.name_scope('iterator'):
+        iterator = tf.contrib.data.Iterator.from_structure(
+            train_dataset.output_types, train_dataset.output_shapes)
+
+        train_init_op = iterator.make_initializer(train_dataset)
+        valid_init_op = iterator.make_initializer(valid_dataset)
+
+    inputs, targets = iterator.get_next()
+
+    step_op = tf.train.get_or_create_global_step()
+
+    train_op = estimator.model_fn({'inputs': inputs}, {'targets': targets},
+        tf.estimator.ModeKeys.TRAIN, params).train_op
+
+    summary_op = tf.summary.merge_all()
+
+    with tf.train.MonitoredTrainingSession(
+        checkpoint_dir=result_path,
+        save_summaries_steps=None,
+        save_summaries_secs=None) as sess:
+        train_writer = tf.summary.FileWriter(
+            os.path.join(result_path, 'training'), sess.graph)
+        valid_writer = tf.summary.FileWriter(
+            os.path.join(result_path, 'validation'))
+
+        while not sess.should_stop():
+            sess.run(train_init_op)
+            for i in range(50):
+                step, summary, _ = sess.run([step_op, summary_op, train_op])
+                train_writer.add_summary(summary, step)
+
+            sess.run(valid_init_op)
+            for i in range(5):
+                step, summary, _ = sess.run([step_op, summary_op, train_op])
+                valid_writer.add_summary(summary, step)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -46,7 +73,7 @@ if __name__ == '__main__':
     parser.add_argument('--discriminator',
         choices=['pixel', 'cnn'])
     parser.add_argument('--num-epochs',
-        type=int, default=0)
+        type=int, default=None)
     parser.add_argument('--batch-size',
         type=int, default=10)
     parser.add_argument('--learn-rate',
