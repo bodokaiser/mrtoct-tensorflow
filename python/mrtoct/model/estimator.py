@@ -10,8 +10,12 @@ def model_fn(features, labels, mode, params):
         outputs = params['generator'](inputs)
 
         with tf.name_scope('loss'):
-            gloss = tf.reduce_mean(tf.abs(targets - outputs))
+            l1loss = tf.reduce_mean(tf.abs(targets - outputs))
+            l2loss = tf.reduce_mean(tf.square(targets - outputs))
+            gloss = l1loss
 
+            tf.summary.scalar('l1', l1loss)
+            tf.summary.scalar('l2', l2loss)
             tf.summary.scalar('loss', gloss)
 
     labels = {'outputs': outputs}
@@ -29,18 +33,20 @@ def model_fn(features, labels, mode, params):
                 with tf.variable_scope('discriminator'):
                     rscore = params['discriminator'](inputs, targets)
 
-                    tf.summary.scalar('score', rscore)
+                    tf.summary.histogram('score', rscore)
 
             with tf.name_scope('fake'):
                 with tf.variable_scope('discriminator', reuse=True):
                     fscore = params['discriminator'](inputs, outputs)
 
-                    tf.summary.scalar('score', fscore)
+                    tf.summary.histogram('score', fscore)
 
             with tf.name_scope('loss'):
-                dloss = tf.reduce_mean(-tf.log(rscore + EPSILON)
+                dgloss = tf.reduce_mean(-tf.log(rscore + EPSILON)
                     - tf.log(1 - fscore + EPSILON))
+                dloss = dgloss
 
+                tf.summary.scalar('gan', dloss)
                 tf.summary.scalar('loss', dloss)
 
             with tf.name_scope('train'):
@@ -51,10 +57,12 @@ def model_fn(features, labels, mode, params):
                 dtrain = doptim.apply_gradients(dgrads,
                     tf.train.get_or_create_global_step())
 
-        with tf.variable_scope('generator', reuse=True):
-            gloss += tf.reduce_mean(-tf.log(fscore + EPSILON))
+        with tf.variable_scope('generator/loss', reuse=True):
+            ggloss = tf.reduce_mean(-tf.log(fscore + EPSILON))
+            gloss += ggloss
+
+            tf.summary.scalar('gan', ggloss)
     else:
-        dloss = tf.zeros([])
         dtrain = tf.no_op()
 
     with tf.name_scope('generator/train'):
