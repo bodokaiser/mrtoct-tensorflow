@@ -1,12 +1,14 @@
 import os
 import tensorflow as tf
 
-from mrtoct.ioutil import tfrecord
-from mrtoct.utils import count, has_nan
+from mrtoct import ioutil
+from mrtoct.utils import count, has_nan, process, normalize
 
 def parse(example):
-    image = tfrecord.decode(example)
-    return tf.image.per_image_standardization(image)
+    image = ioutil.decode_example(example)
+    image = normalize(image)
+    image = process(image)
+    return tf.image.convert_image_dtype(image, tf.float32)
 
 def filter_nans(mr, ct):
     return tf.logical_not(tf.logical_or(has_nan(ct), has_nan(mr)))
