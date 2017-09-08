@@ -1,28 +1,46 @@
 import numpy as np
 import tensorflow as tf
 
+Options = tf.python_io.TFRecordOptions(
+    tf.python_io.TFRecordCompressionType.GZIP)
+
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 def _float_feature(value):
-    return tf.train.Feature(float_list=tf.train.FloatList(value=value))
+    return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
 
 def _int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-def encode(image):
-    return tf.train.Example(features=tf.train.Features(feature={
-        'image': _bytes_feature(image.astype(np.int32).tobytes()),
-        'shape': _int64_feature(image.shape),
-    })).SerializeToString()
+class Decoder:
 
-def decode(example):
-    features = tf.parse_single_example(example, features={
-        'image': tf.FixedLenFeature([], tf.string),
-        'shape': tf.FixedLenFeature([2], tf.int64),
-    })
+    def __init__(self):
+        self.features = {
+            'volume/encoded': tf.FixedLenFeature((), tf.string),
+            'volume/height': tf.FixedLenFeature((), tf.int64),
+            'volume/width': tf.FixedLenFeature((), tf.int64),
+            'volume/depth': tf.FixedLenFeature((), tf.int64),
+        }
 
-    shape = tf.cast(features['shape'], tf.int32)
-    image = tf.reshape(tf.decode_raw(features['image'], tf.int32), shape)
+    def decode(self, example):
+        with tf.name_scope('decode'):
+            features = tf.parse_single_example(example, features=self.features)
 
-    return tf.expand_dims(image, -1)
+            return tf.reshape(tf.decode_raw(
+                features['volume/encoded'], tf.int16), [
+                tf.cast(features['volume/height'], tf.int32),
+                tf.cast(features['volume/width'], tf.int32),
+                tf.cast(features['volume/depth'], tf.int32),
+            ])
+
+class Encoder:
+
+    def encode(self, volume):
+        with tf.name_scope('encode'):
+            return tf.train.Example(features=tf.train.Features(feature={
+                'volume/encoded': _bytes_feature(volume.astype(np.int16).tobytes()),
+                'volume/height': _int64_feature(volume.shape[0]),
+                'volume/width': _int64_feature(volume.shape[1]),
+                'volume/depth': _int64_feature(volume.shape[2]),
+            })).SerializeToString()

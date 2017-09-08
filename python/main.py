@@ -7,20 +7,21 @@ from mrtoct import model
 from mrtoct import ioutil
 
 def convert(input_path, output_path):
-    for e in os.listdir(input_path):
-        source = os.path.join(input_path, e)
+    options = ioutil.TFRecordOptions
+    encoder = ioutil.TFRecordEncoder()
 
-        if not os.path.isdir(source):
+    os.makedirs(output_path, exist_ok=True)
+
+    for fn, ext in map(os.path.splitext, os.listdir(input_path)):
+        if ext != '.nii':
             continue
 
-        for m in ['ct', 'mr']:
-            target = os.path.join(output_path, f'{e}{m}.tfrecord')
+        source = os.path.join(input_path, f'{fn}.nii')
+        target = os.path.join(output_path, f'{fn}.tfrecord')
+        volume = ioutil.read_nifti(os.path.join(source))
 
-            with tf.python_io.TFRecordWriter(target) as writer:
-                volume = ioutil.read_nifti(os.path.join(source, f'{m}.nii'))
-
-                for i in range(volume.shape[-1]):
-                    writer.write(ioutil.encode_example(volume[:,:,i]))
+        with tf.python_io.TFRecordWriter(target, options) as writer:
+            writer.write(encoder.encode(volume))
 
 def train(train_path, valid_path, result_path, params, batch_size, num_epochs):
     tf.logging.set_verbosity(tf.logging.INFO)
@@ -102,7 +103,7 @@ if __name__ == '__main__':
     parser_train.add_argument('--hparams', type=str, default='')
 
     parser_convert = subparsers.add_parser('convert')
-    parser_convert.add_argument('--input-path', default='../data/nii')
+    parser_convert.add_argument('--input-path', default='../data/nifti')
     parser_convert.add_argument('--output-path', default='../data/tfrecord')
 
     main(parser.parse_args())

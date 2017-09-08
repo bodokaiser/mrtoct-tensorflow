@@ -1,5 +1,6 @@
 matlab/spm12
 data/raw/*
 data/png/*
-data/nii/*
+data/dicom/*
+data/nifti/*
 data/tfrecord/*
