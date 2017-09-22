@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from mrtoct import util
+
 
 EPSILON = 1e-12
 
@@ -24,3 +26,13 @@ def adv_d(fake_score, real_score):
 def adv_g(fake_score):
     with tf.name_scope('adv'):
         return tf.reduce_mean(-tf.log(fake_score + EPSILON))
+
+
+def gdl(targets, outputs):
+    with tf.name_scope('gdl'):
+        targets_grad = util.gradient(targets)
+        outputs_grad = util.gradient(outputs)
+
+        return (mse(targets_grad[0], outputs_grad[0]) +
+                mse(targets_grad[1], outputs_grad[1]) +
+                mse(targets_grad[2], outputs_grad[2]))

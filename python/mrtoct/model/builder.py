@@ -36,12 +36,16 @@ def create_generator(inputs, targets, mode, params):
         with tf.name_scope('metrics'):
             mae = losses.mae(targets, outputs)
             mse = losses.mse(targets, outputs)
+            gdl = losses.gdl(targets, outputs)
 
             tf.summary.scalar('mean_absolute_error', mae)
             tf.summary.scalar('mean_squared_error', mse)
+            tf.summary.scalar('gradient_difference_loss', gdl)
 
         with tf.name_scope('loss'):
-            loss_op = params.mae_weight * mae + params.mse_weight * mse
+            loss_op = params.mae_weight * mae
+            loss_op += params.mse_weight * mse
+            loss_op += params.gdl_weight * gdl
 
             tf.summary.scalar('total', loss_op)
 
@@ -94,7 +98,7 @@ def create_generative_adversarial_network(inputs, targets, mode, params):
 
     with tf.variable_scope('generative_adversarial'):
         gadv = losses.adv_g(dspec.fake_score)
-        gloss_op = gadv + params.loss_weight * gspec.loss_op
+        gloss_op = params.adv_weight * gadv + gspec.loss_op
 
         tf.summary.scalar('loss/gadv', gadv)
         tf.summary.scalar('loss/gloss', gloss_op)
