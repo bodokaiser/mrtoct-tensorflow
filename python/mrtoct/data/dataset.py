@@ -15,16 +15,16 @@ def create_patch_dataset(filenames, indices, vshape, pshape):
                       .map(transform.tfrecord_to_tensor())
                       .map(normalize.tensor_value_range())
                       .map(normalize.tensor_shape(vshape))
-                      .enumerate()
                       .cache())
 
-    def extract_patches(id, volume):
+    def extract_patches(volume):
         dataset = (tf.contrib.data.Dataset
-                   .from_tensors((id, volume))
+                   .from_tensors(volume)
                    .repeat(num_indices))
 
         return (tf.contrib.data.Dataset
                 .zip((dataset, index_dataset))
-                .map(transform.extract_patch(pshape)))
+                .map(transform.extract_patch(pshape))
+                .map(lambda v: tf.expand_dims(v, -1)))
 
     return volume_dataset.flat_map(extract_patches)

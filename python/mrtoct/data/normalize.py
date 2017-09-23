@@ -14,7 +14,7 @@ def tensor_value_range():
 
 def tensor_shape(shape):
     def normalize_shape(tensor):
-        off = tf.divide(tf.subtract(shape[0:3], tf.shape(tensor)), 2)
+        off = tf.divide(tf.subtract(shape, tf.shape(tensor)), 2)
         pad = [tf.stack([tf.floor(off[i]), tf.ceil(off[i])]) for i in range(3)]
 
         tensor = tf.pad(tensor, tf.cast(tf.stack(pad), tf.int32))
