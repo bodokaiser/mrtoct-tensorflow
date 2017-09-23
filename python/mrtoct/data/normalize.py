@@ -1,6 +1,14 @@
 import tensorflow as tf
 
 
+def zero_center_mean(x):
+    return tf.subtract(tf.multiply(x, 2), 1)
+
+
+def uncenter_zero_mean(x):
+    return tf.divide(tf.add(x, 1), 2)
+
+
 def tensor_value_range():
     def normalize_value_range(tensor):
         tensor = tf.cast(tensor, tf.float32)

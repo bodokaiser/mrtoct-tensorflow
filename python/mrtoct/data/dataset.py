@@ -15,6 +15,7 @@ def create_patch_dataset(filenames, indices, vshape, pshape):
                       .map(transform.tfrecord_to_tensor())
                       .map(normalize.tensor_value_range())
                       .map(normalize.tensor_shape(vshape))
+                      .map(normalize.zero_center_mean)
                       .cache())
 
     def extract_patches(volume):

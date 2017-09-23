@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+xavier_init = tf.contrib.layers.xavier_initializer
+
 
 def lrelu(x, leakiness=.02):
     return tf.where(tf.less(x, .0), leakiness * x, x, name='leaky_relu')
@@ -66,13 +68,29 @@ def pix2pix(x1, x2, params):
     return tf.nn.sigmoid(x)
 
 
-def synthgen(x, params):
-    for ks, nf in [(9, 32), (3, 32), (3, 32), (3, 64), (9, 64), (3, 64),
-                   (3, 32), (7, 32)]:
-        x = tf.layers.conv3d(x, nf, ks, 1, 'SAME')
+def _conv3d(x, kernel_size, num_filters, stride=1, bnorm=True, padding='SAME',
+            activation=tf.nn.relu):
+    x = tf.layers.conv3d(x, num_filters, kernel_size, stride, padding,
+                         kernel_initializer=xavier_init())
+
+    if bnorm:
         x = tf.layers.batch_normalization(x)
-        x = tf.nn.relu(x)
-    x = tf.layers.conv3d(x, 1, 3, 2, 'SAME')
+    if activation is not None:
+        x = activation(x)
+
+    return x
+
+
+def synthgen(x, params):
+    x = _conv3d(x, 9, 32)
+    x = _conv3d(x, 3, 32)
+    x = _conv3d(x, 3, 32)
+    x = _conv3d(x, 3, 32)
+    x = _conv3d(x, 9, 64)
+    x = _conv3d(x, 3, 64)
+    x = _conv3d(x, 3, 32)
+    x = _conv3d(x, 7, 32)
+    x = _conv3d(x, 3, 1, 1, activation=tf.nn.tanh)
 
     return x
 
