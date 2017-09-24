@@ -2,7 +2,8 @@ import tensorflow as tf
 
 
 def _variable(name, shape, init):
-    return tf.get_variable(name, shape, tf.float32, init, trainable=False)
+    return tf.get_variable(name, shape, tf.float32, init,
+       collections=None, trainable=False)
 
 
 class SparseMovingAverage:
@@ -12,6 +13,8 @@ class SparseMovingAverage:
         self._shape = shape
 
     def apply(self, indices, values):
+        ndims = len(self._shape)
+
         with tf.variable_scope(self._name):
             self._value = _variable('value', self._shape,
                                     tf.zeros_initializer())
@@ -19,9 +22,7 @@ class SparseMovingAverage:
                                      tf.ones_initializer())
             self._average = tf.div(self._value, self._weight)
 
-            batch_size = tf.shape(indices)[0]
-
-            indices = tf.reshape(indices, [-1, 5])
+            indices = tf.transpose(tf.reshape(indices, [3, -1]))
             value_updates = tf.reshape(values, [-1])
             weight_updates = tf.cast(tf.greater(value_updates, 0), tf.float32)
 
@@ -31,3 +32,9 @@ class SparseMovingAverage:
 
     def average(self):
         return self._average
+
+    def value(self):
+        return self._value
+
+    def weight(self):
+        return self._weight
