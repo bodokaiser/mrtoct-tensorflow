@@ -4,24 +4,7 @@ import tensorflow as tf
 
 from mrtoct import data
 from mrtoct import model
-from mrtoct import ioutil
 
-def convert(input_path, output_path):
-    options = ioutil.TFRecordOptions
-    encoder = ioutil.TFRecordEncoder()
-
-    os.makedirs(output_path, exist_ok=True)
-
-    for fn, ext in map(os.path.splitext, os.listdir(input_path)):
-        if ext != '.nii':
-            continue
-
-        source = os.path.join(input_path, f'{fn}.nii')
-        target = os.path.join(output_path, f'{fn}.tfrecord')
-        volume = ioutil.read_nifti(os.path.join(source))
-
-        with tf.python_io.TFRecordWriter(target, options) as writer:
-            writer.write(encoder.encode(volume))
 
 def train(train_path, valid_path, result_path, params, batch_size, num_epochs):
     tf.logging.set_verbosity(tf.logging.INFO)
@@ -72,38 +55,29 @@ def train(train_path, valid_path, result_path, params, batch_size, num_epochs):
                 step, summary, _ = sess.run(fetches)
                 valid_writer.add_summary(summary, step)
 
-def main(args):
-    if args.action == 'convert':
-        return convert(args.input_path, args.output_path)
-    if args.action == 'train':
-        hparams = tf.contrib.training.HParams(
-            learn_rate=2e-4,
-            beta1_rate=5e-1,
-            mse_weight=0.00,
-            mae_weight=1.00,
-            loss_weight=100,
-            num_filters=64)
-        hparams.parse(args.hparams)
 
-        train(args.train_path, args.valid_path, args.result_path, hparams,
-            args.batch_size, args.num_epochs)
+def main(args):
+    hparams = tf.contrib.training.HParams(
+        learn_rate=2e-4,
+        beta1_rate=5e-1,
+        mse_weight=0.00,
+        mae_weight=1.00,
+        loss_weight=100,
+        num_filters=64)
+    hparams.parse(args.hparams)
+
+    train(args.train_path, args.valid_path, args.result_path, hparams,
+        args.batch_size, args.num_epochs)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-
-    subparsers = parser.add_subparsers(dest='action')
-    subparsers.required = True
-
-    parser_train = subparsers.add_parser('train')
-    parser_train.add_argument('--train-path', default='training')
-    parser_train.add_argument('--valid-path', default='validation')
-    parser_train.add_argument('--result-path', default='results')
-    parser_train.add_argument('--num-epochs', type=int, default=None)
-    parser_train.add_argument('--batch-size', type=int, default=10)
-    parser_train.add_argument('--hparams', type=str, default='')
-
-    parser_convert = subparsers.add_parser('convert')
-    parser_convert.add_argument('--input-path', default='../data/nifti')
-    parser_convert.add_argument('--output-path', default='../data/tfrecord')
+    parser = subparsers.add_parser('train')
+    parser.add_argument('--train-path', default='training')
+    parser.add_argument('--valid-path', default='validation')
+    parser.add_argument('--result-path', default='results')
+    parser.add_argument('--num-epochs', type=int, default=None)
+    parser.add_argument('--batch-size', type=int, default=10)
+    parser.add_argument('--hparams', type=str, default='')
 
     main(parser.parse_args())

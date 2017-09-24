@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from mrtoct import util, model, data
+from mrtoct import model, data
 
 # number of indices to sample
 NUM_SAMPLES = 10000
