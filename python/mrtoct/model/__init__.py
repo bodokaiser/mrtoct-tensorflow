@@ -5,7 +5,7 @@ from mrtoct.model.builder import create_discriminator
 from mrtoct.model.builder import create_generative_adversarial_network
 
 # architectures
-from mrtoct.model.network import synthgen, synthdisc, dummy
+from mrtoct.model.network import synthgen, synthdisc
 
 # utilities
-from mrtoct.model.variable import SparseMovingAverage
+from mrtoct.model.patch_aggregator import PatchAggregator3D

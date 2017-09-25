@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from mrtoct import ioutil, util
+from mrtoct import ioutil
 
 
 class Compose:
@@ -27,7 +27,7 @@ class CastType:
       return tf.cast(x, self.dtype)
 
 
-class ExpandDim:
+class ExpandDims:
 
   def __init__(self, axis=-1):
     self.axis = axis
@@ -64,17 +64,15 @@ class DecodeExample:
       return self.decoder.decode(x)
 
 
-class ExtractPatch:
+class ExtractPatch3D:
 
   def __init__(self, shape):
     self.shape = shape
 
   def __call__(self, index, x):
     with tf.name_scope('extract_patch'):
-      start = tf.subtract(index, tf.divide(index, 2))
-      stop = tf.add(start, index)
+      index = tf.convert_to_tensor(index)
+      shape = tf.convert_to_tensor(self.shape)
+      start = index - tf.cast(tf.floor(shape / 2), index.dtype)
 
-      indices = util.meshgrid(start, stop, 1)
-      indices_flat = tf.transpose(tf.reshape(indices, [-1]))
-
-      return tf.gather_nd(x, indices_flat)
+      return tf.slice(x, start, shape)
