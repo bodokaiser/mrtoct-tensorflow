@@ -8,4 +8,4 @@ from mrtoct.model.builder import create_generative_adversarial_network
 from mrtoct.model.network import synthgen, synthdisc
 
 # utilities
-from mrtoct.model.patch_aggregator import PatchAggregator3D
+from mrtoct.model.moving_average import SparseMovingAverage
