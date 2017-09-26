@@ -14,6 +14,10 @@ def _int64_feature(value):
   return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
 
 
+Options = tf.python_io.TFRecordOptions(
+    tf.python_io.TFRecordCompressionType.GZIP)
+
+
 class Encoder:
   """Encodes a numpy array as tfrecord."""
 
