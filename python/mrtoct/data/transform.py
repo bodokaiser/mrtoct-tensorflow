@@ -4,6 +4,7 @@ from mrtoct import ioutil
 
 
 class Compose:
+  """Composes list of transforms to single transform."""
 
   def __init__(self, transforms=[]):
     assert len(transforms) > 0
@@ -18,6 +19,7 @@ class Compose:
 
 
 class CastType:
+  """Casts input to given type."""
 
   def __init__(self, dtype=tf.float32):
     self.dtype = dtype
@@ -28,6 +30,7 @@ class CastType:
 
 
 class ExpandDims:
+  """Expands input at given axis."""
 
   def __init__(self, axis=-1):
     self.axis = axis
@@ -38,6 +41,7 @@ class ExpandDims:
 
 
 class CenterMean:
+  """Normalizes input to [-1,1]."""
 
   def __call__(self, x):
     with tf.name_scope('center_mean'):
@@ -48,6 +52,7 @@ class CenterMean:
 
 
 class UncenterMean:
+  """Unnormalizes input to [0,1]."""
 
   def __call__(self, x):
     with tf.name_scope('uncenter_mean'):
@@ -55,6 +60,7 @@ class UncenterMean:
 
 
 class DecodeExample:
+  """Decodes a tfrecord string with `decoder`."""
 
   def __init__(self, decoder=None):
     self.decoder = decoder if decoder is not None else ioutil.TFRecordDecoder()
@@ -65,6 +71,7 @@ class DecodeExample:
 
 
 class ExtractPatch3D:
+  """Extracts a 3d patch of `shape` centered at `index` from input."""
 
   def __init__(self, shape):
     self.shape = shape

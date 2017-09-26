@@ -2,6 +2,7 @@ import tensorflow as tf
 
 
 def meshgrid_2d(start, stop, delta=1):
+  """Calculates tensor indices 2d."""
   with tf.name_scope('meshgrid_2d'):
     start = tf.convert_to_tensor(start)
     stop = tf.convert_to_tensor(stop)
@@ -19,6 +20,15 @@ def meshgrid_2d(start, stop, delta=1):
 
 
 def meshgrid_3d(start, stop, delta=1):
+  """Calculates tensor indices in 3d.
+
+  Args:
+    start: tensor or array as grid offset
+    stop: tensor or array as grid end
+    delta: tensor or integer as grid spacing
+  Returns:
+    indices: tensor of shape `(stop - start) // delta` with (k, j, i) indices
+  """
   with tf.name_scope('meshgrid_3d'):
     start = tf.convert_to_tensor(start)
     stop = tf.convert_to_tensor(stop)
@@ -37,6 +47,13 @@ def meshgrid_3d(start, stop, delta=1):
 
 
 def spatial_gradient_3d(volume):
+  """Calculates the spatial gradient for the three spatial axes of a volume.
+
+  Args:
+    volume: tensor of shape [batch, depth, height, width, channels]
+  Returns:
+    gradients: list of gradients dz, dy, dx
+  """
   with tf.name_scope('spatial_gradient_3d'):
     volume = tf.convert_to_tensor(volume)
 
