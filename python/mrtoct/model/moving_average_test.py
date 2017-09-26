@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from mrtoct import model, util
+from mrtoct import model
 
 
 class SparseMovingAverageTest(tf.test.TestCase):

@@ -3,7 +3,7 @@ import tensorflow as tf
 from mrtoct import util
 
 
-def sample_meshgrid_3d(start, stop, delta):
+def sample_meshgrid_3d(start, stop, delta=1):
   """Samples indices from 3d meshgrid.
 
   Args:
@@ -14,7 +14,7 @@ def sample_meshgrid_3d(start, stop, delta):
     dataset
   """
   with tf.name_scope('sample_meshgrid'):
-    indices = util.meshgrid(start, stop, delta)
+    indices = util.meshgrid_3d(start, stop, delta)
 
     return tf.contrib.data.Dataset.from_tensor_slices(indices)
 
