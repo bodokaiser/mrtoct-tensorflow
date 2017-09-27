@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from mrtoct import model
+from mrtoct.patch import SparseMovingAverage
 
 
 class SparseMovingAverageTest(tf.test.TestCase):
@@ -10,7 +10,7 @@ class SparseMovingAverageTest(tf.test.TestCase):
     indices = tf.constant([[2], [7], [8]])
     values = tf.constant([1.0, 2.0, 3.0])
 
-    sma = model.SparseMovingAverage([10], '1d')
+    sma = SparseMovingAverage([10], '1d')
     op = sma.update(indices, values)
     av = sma.average()
 
@@ -26,7 +26,7 @@ class SparseMovingAverageTest(tf.test.TestCase):
     indices = tf.constant([[0, 0], [1, 0], [2, 2]])
     values = tf.constant([1.0, 2.0, 3.0])
 
-    sma = model.SparseMovingAverage([3, 3], '2d')
+    sma = SparseMovingAverage([3, 3], '2d')
     op = sma.update(indices, values)
     av = sma.average()
 
@@ -42,7 +42,7 @@ class SparseMovingAverageTest(tf.test.TestCase):
     values = tf.constant([[1.0, 2.0],
                           [3.0, 4.0]])
 
-    sma = model.SparseMovingAverage([6, 6], '2d')
+    sma = SparseMovingAverage([6, 6], '2d')
     op = sma.update(indices, values)
     av = sma.average()
 

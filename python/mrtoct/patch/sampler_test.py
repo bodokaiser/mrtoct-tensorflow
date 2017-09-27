@@ -1,13 +1,12 @@
-import numpy as np
 import tensorflow as tf
 
-from mrtoct import model
+from mrtoct.patch import sample_meshgrid_3d, sample_uniform_3d
 
 
 class SamplerTest(tf.test.TestCase):
 
   def test_sample_meshgrid_3d(self):
-    dataset = model.sample_meshgrid_3d([0, 0, 0], [0, 2, 2])
+    dataset = sample_meshgrid_3d([0, 0, 0], [0, 2, 2])
     index = dataset.make_one_shot_iterator().get_next()
 
     with self.test_session():
@@ -18,7 +17,7 @@ class SamplerTest(tf.test.TestCase):
         self.assertEqual([0, 1, 1], index.eval())
 
   def test_sample_uniform_3d(self):
-    dataset = model.sample_uniform_3d([0, 0, 0], [1, 2, 2], 1)
+    dataset = sample_uniform_3d([0, 0, 0], [1, 2, 2], 1)
     iterator = dataset.make_initializable_iterator()
 
     with self.test_session() as sess:
