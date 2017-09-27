@@ -1,73 +1,38 @@
 import tensorflow as tf
 
-
-def pix2pix_generator(x, params):
-  unet = UNet(x)
-
-  for i, a in enumerate([1, 2, 4, 8, 8]):
-    unet.add_encoder(num_filters=a * params.num_filters, batch_norm=i == 0)
-  for i, a in enumerate([8, 8, 4, 2, 1]):
-    unet.add_decoder(num_filters=a * params.num_filters, dropout=i in [0, 1])
-
-  return unet.finalize()
+from mrtoct.model import layers
+from mrtoct.model.cnn import unet
 
 
-def pix2pix(x1, x2, params):
-  nf = params.num_filters
+def generator_network(params):
+  inputs = layers.Input(shape=(None, None, 1))
+  outputs = unet.generator_network(params)(inputs)
 
-  x = tf.concat([x1, x2], 3)
-
-  for i, s in enumerate([nf, 2 * nf, 4 * nf]):
-    x = tf.layers.conv2d(x, s, 4, 2, 'SAME', name=f'conv{i}',
-                         activation=lrelu)
-
-  x = tf.layers.conv2d(x, 8 * nf, 4, 2, 'VALID',
-                       name='conv3', activation=lrelu)
-  x = tf.layers.conv2d(x, 1, 4, 1, 'VALID',
-                       name='conv4', activation=lrelu)
-
-  return tf.nn.sigmoid(x)
+  return layers.Network(inputs, outputs, name='generator')
 
 
-def _conv3d(x, kernel_size, num_filters, stride=1, bnorm=True, padding='SAME',
-            activation=tf.nn.relu):
-  x = tf.layers.conv3d(x, num_filters, kernel_size, stride, padding,
-                       kernel_initializer=xavier_init())
+def discriminator_conv_layer(inputs, num_filters):
+  outputs = layers.Conv2D(num_filters, 4, 2)(inputs)
+  outputs = layers.LeakyReLU()(outputs)
 
-  if bnorm:
-    x = tf.layers.batch_normalization(x)
-  if activation is not None:
-    x = activation(x)
-
-  return x
+  return outputs
 
 
-def synthgen(x, params):
-  x = _conv3d(x, 9, 32)
-  x = _conv3d(x, 3, 32)
-  x = _conv3d(x, 3, 32)
-  x = _conv3d(x, 3, 32)
-  x = _conv3d(x, 9, 64)
-  x = _conv3d(x, 3, 64)
-  x = _conv3d(x, 3, 32)
-  x = _conv3d(x, 7, 32)
-  x = _conv3d(x, 3, 1, 1, activation=tf.nn.tanh)
+def discriminator_final_layer(inputs):
+  outputs = layers.Conv2D(1, 4, 1)(inputs)
+  outputs = layers.Activation(tf.nn.sigmoid)(outputs)
 
-  return x
+  return outputs
 
 
-def synthdisc(x1, x2, params):
-  x = x1
+def discriminator_network(params):
+  inputs = outputs = layers.Input(shape=(None, None, 2))
 
-  for i, s in enumerate([32, 64, 128, 256]):
-    x = tf.layers.conv3d(x, s, 5, 1, 'SAME', name=f'conv{i}')
-    x = tf.layers.batch_normalization(x, name=f'bnorm{i}')
-    x = tf.nn.relu(x)
-    x = tf.layers.max_pooling3d(x, 5, 1)
+  for i, a in enumerate([1, 2, 4, 8]):
+    with tf.variable_scope(f'conv{i}'):
+      outputs = discriminator_conv_layer(outputs, a * params.num_filters)
 
-  for i, s in enumerate([512, 128, 1]):
-    x = tf.layers.dense(x, s, name=f'dense{i}')
+  with tf.variable_scope('final'):
+    outputs = discriminator_final_layer(outputs)
 
-  x = tf.nn.sigmoid(x)
-
-  return x
+  return layers.Network(inputs, outputs, name='discriminator')
