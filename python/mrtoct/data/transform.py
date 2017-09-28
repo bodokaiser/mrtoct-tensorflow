@@ -45,18 +45,24 @@ class CenterPad:
 
   def __init__(self, shape):
     self.shape = shape
-    self.ndim = len(shape)
 
   def __call__(self, x):
-    if x.get_shape().ndims != self.ndim:
-      raise ValueError('target and tensor shape must share dimensions')
-
     with tf.name_scope('center_pad'):
-      off = tf.divide(tf.subtract(self.shape, tf.shape(x)), 2)
-      pad = tf.stack([tf.stack([tf.floor(off[i]), tf.ceil(off[i])])
-                      for i in range(self.ndim)])
+      target_shape = tf.convert_to_tensor(self.shape)
+      input_shape = tf.shape(x)
 
-      return tf.reshape(tf.pad(x, tf.to_int32(pad)), self.shape)
+      ndim1 = input_shape.shape.num_elements()
+      ndim2 = target_shape.shape.num_elements()
+
+      if ndim1 != ndim2:
+        raise RuntimeError(f'''target and input shape should equal
+        but were {ndim1} and {ndim2}''')
+
+      off = (target_shape - input_shape) / 2
+      pad = tf.stack([tf.stack([tf.floor(off[i]), tf.ceil(off[i])])
+                      for i in range(ndim1)])
+
+      return tf.reshape(tf.pad(x, tf.to_int32(pad)), target_shape)
 
 
 class CenterCrop:
