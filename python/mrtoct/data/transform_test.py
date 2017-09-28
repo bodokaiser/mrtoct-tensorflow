@@ -38,6 +38,35 @@ class TransformTest(tf.test.TestCase):
       self.assertAllEqual(y.eval(), t1(x).eval())
       self.assertAllEqual(z.eval(), t2(y).eval())
 
+  def test_center_pad(self):
+    x = np.random.randn(100, 200, 300)
+    y = np.zeros([300, 300, 300])
+    z = np.zeros([400, 400, 400])
+
+    y[100:200, 50:250, :] = x
+    z[150:250, 100:300, 50:350] = x
+
+    t1 = data.transform.CenterPad([300, 300, 300])
+    t2 = data.transform.CenterPad([400, 400, 400])
+
+    with self.test_session():
+      x = tf.constant(x)
+
+      self.assertAllEqual(y, t1(x).eval())
+      self.assertAllEqual(z, t2(x).eval())
+
+  def test_center_crop(self):
+    x = np.random.randn(100, 200, 300)
+
+    t1 = data.transform.CenterCrop([100, 100, 100])
+    t2 = data.transform.CenterCrop([50, 50, 50])
+
+    with self.test_session():
+      y = tf.constant(x)
+
+      self.assertAllEqual(x[:, 50:150, 100:200], t1(y).eval())
+      self.assertAllEqual(x[25:75, 75:125, 125:175], t2(y).eval())
+
   def test_normalize(self):
     x = tf.constant([5, 11, 6, 1])
     y = tf.constant([0.4, 1.0, 0.5, 0.0])
@@ -65,11 +94,25 @@ class TransformTest(tf.test.TestCase):
     with self.test_session():
       self.assertAllClose(y.eval(), t(x).eval())
 
-  def test_extract_patch_3d(self):
+  def test_extract_slice(self):
+    x = np.random.randn(10, 10, 10)
+    y = x[5]
+    z = x[:, :, 2]
+
+    t1 = data.transform.ExtractSlice()
+    t2 = data.transform.ExtractSlice(axis=2)
+
+    with self.test_session():
+      x = tf.constant(x)
+
+      self.assertAllEqual(y, t1(5, x).eval())
+      self.assertAllEqual(z, t2(2, x).eval())
+
+  def test_extract_patch(self):
     x = np.random.randn(10, 10, 10)
     y = x[4:7, 4:7, 4:7]
 
-    t = data.transform.ExtractPatch3D([3, 3, 3])
+    t = data.transform.ExtractPatch([3, 3, 3])
 
     with self.test_session():
       self.assertAllEqual(y, t([5, 5, 5], x).eval())

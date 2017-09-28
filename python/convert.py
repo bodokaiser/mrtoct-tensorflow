@@ -39,9 +39,7 @@ def main(args):
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser('convert', description='''
-    reads NIfTI volumes from input path and writes TFRecord to output path
-  ''')
+  parser = argparse.ArgumentParser('convert')
   parser.add_argument('--input-path', default='../data/nifti')
   parser.add_argument('--output-path', default='../data/tfrecord')
 

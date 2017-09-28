@@ -40,6 +40,38 @@ class ExpandDims:
       return tf.expand_dims(x, self.axis)
 
 
+class CenterPad:
+  """Pads input symmetric to `shape`."""
+
+  def __init__(self, shape):
+    self.shape = shape
+    self.ndim = len(shape)
+
+  def __call__(self, x):
+    if x.get_shape().ndims != self.ndim:
+      raise ValueError('target and tensor shape must share dimensions')
+
+    with tf.name_scope('center_pad'):
+      off = tf.divide(tf.subtract(self.shape, tf.shape(x)), 2)
+      pad = tf.stack([tf.stack([tf.floor(off[i]), tf.ceil(off[i])])
+                      for i in range(self.ndim)])
+
+      return tf.reshape(tf.pad(x, tf.to_int32(pad)), self.shape)
+
+
+class CenterCrop:
+  """Crops input symmetric to `shape`."""
+
+  def __init__(self, shape):
+    self.shape = shape
+
+  def __call__(self, x):
+    with tf.name_scope('center_crop'):
+      off = tf.subtract(tf.shape(x), self.shape) // 2
+
+      return tf.slice(x, off, self.shape)
+
+
 class Normalize:
   """Normalizes input to [0,1]."""
 
@@ -78,8 +110,25 @@ class DecodeExample:
       return self.decoder.decode(x)
 
 
-class ExtractPatch3D:
-  """Extracts a 3d patch of `shape` centered at `index` from input."""
+class ExtractSlice:
+  """Extracts a slice from `axis` at `index` from input."""
+
+  def __init__(self, axis=0):
+    self.axis = axis
+
+  def __call__(self, index, x):
+    if self.axis == 0:
+      return x[index]
+    if self.axis == 1:
+      return x[:, index]
+    if self.axis == 2:
+      return x[:, :, index]
+
+    raise ValueError(f'axis should be 0, 1, 2 not {self.axis}')
+
+
+class ExtractPatch:
+  """Extracts a patch of `shape` centered at `index` from input."""
 
   def __init__(self, shape):
     self.shape = shape
