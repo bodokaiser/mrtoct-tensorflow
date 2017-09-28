@@ -38,8 +38,17 @@ class TransformTest(tf.test.TestCase):
       self.assertAllEqual(y.eval(), t1(x).eval())
       self.assertAllEqual(z.eval(), t2(y).eval())
 
-  def test_center_mean(self):
+  def test_normalize(self):
     x = tf.constant([5, 11, 6, 1])
+    y = tf.constant([0.4, 1.0, 0.5, 0.0])
+
+    t = data.transform.Normalize()
+
+    with self.test_session():
+      self.assertAllClose(y.eval(), t(x).eval())
+
+  def test_center_mean(self):
+    x = tf.constant([0.4, 1.0, 0.5, 0.0])
     y = tf.constant([-0.2, 1.0, 0.0, -1.0])
 
     t = data.transform.CenterMean()

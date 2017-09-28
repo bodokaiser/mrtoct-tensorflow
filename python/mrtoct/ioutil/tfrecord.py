@@ -29,12 +29,13 @@ class Encoder:
     Returns:
       tfrecord: tfrecord serialized to string
     """
-    buf = volume.astype(np.int16).tobytes()
-
     with tf.name_scope('encode'):
       return tf.train.Example(features=tf.train.Features(feature={
-          'volume/encoded': _bytes_feature([buf]),
+          'volume/encoded': _bytes_feature([
+              volume.astype(np.int32).tobytes()]),
           'volume/shape': _int64_feature(volume.shape),
+          'volume/vmin': _int64_feature([volume.min()]),
+          'volume/vmax': _int64_feature([volume.max()]),
       })).SerializeToString()
 
 
@@ -45,6 +46,8 @@ class Decoder:
     self.features = {
         'volume/encoded': tf.FixedLenFeature((), tf.string),
         'volume/shape': tf.VarLenFeature(tf.int64),
+        'volume/vmin': tf.FixedLenFeature((), tf.int64),
+        'volume/vmax': tf.FixedLenFeature((), tf.int64),
     }
 
   def decode(self, example):
@@ -58,5 +61,5 @@ class Decoder:
     with tf.name_scope('decode'):
       features = tf.parse_single_example(example, features=self.features)
 
-      return tf.reshape(tf.decode_raw(features['volume/encoded'], tf.int16),
+      return tf.reshape(tf.decode_raw(features['volume/encoded'], tf.int32),
                         features['volume/shape'].values)

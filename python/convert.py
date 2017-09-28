@@ -6,6 +6,12 @@ from mrtoct import ioutil
 
 
 def convert(input_path, output_path):
+  """Converts NIfTI volumes in `input_patch` to TFRecord at `output_path`.
+
+  Args:
+    input_path: path to directory with NIfTI files inside
+    output_path: path to directory to write TFRecords to
+  """
   encoder = ioutil.TFRecordEncoder()
   options = ioutil.TFRecordOptions
 
@@ -33,7 +39,9 @@ def main(args):
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser('convert', description='''
+    reads NIfTI volumes from input path and writes TFRecord to output path
+  ''')
   parser.add_argument('--input-path', default='../data/nifti')
   parser.add_argument('--output-path', default='../data/tfrecord')
 

@@ -40,14 +40,22 @@ class ExpandDims:
       return tf.expand_dims(x, self.axis)
 
 
+class Normalize:
+  """Normalizes input to [0,1]."""
+
+  def __call__(self, x):
+    with tf.name_scope('normalize'):
+      x -= tf.reduce_min(x)
+      x /= tf.reduce_max(x)
+
+      return x
+
+
 class CenterMean:
   """Normalizes input to [-1,1]."""
 
   def __call__(self, x):
     with tf.name_scope('center_mean'):
-      x -= tf.reduce_min(x)
-      x /= tf.reduce_max(x)
-
       return 2 * x - 1
 
 
