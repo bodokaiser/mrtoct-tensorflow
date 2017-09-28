@@ -1,56 +1,69 @@
 import argparse
 import tensorflow as tf
 
-from mrtoct import data, ioutil
+from mrtoct import data, ioutil, html
 
 
-def compare(input_labels, input_filenames, output_filename):
+def compare(inputs, target, labels, steps):
   """Writes HTML file with per slice images of input volumes.
 
   Args:
-    input_labels: labels of input, i.e. "Ground Truth"
-    input_filenames: filenames to TFRecord volumes
-    output_filename: filename of HTML output file
+    labels: labels of input (i.e. "Ground Truth") to use as table head
+    inputs: filenames to TFRecord volumes
+    target: filename of HTML output file
+    steps: distance between slices
   """
   options = ioutil.TFRecordOptions.get_compression_type_string(
       ioutil.TFRecordOptions)
 
-  label_dataset = (tf.contrib.data
-                   .Dataset.from_tensor_slices(input_labels))
-
-  volume_transform = data.transforms.Compose([
-      data.transforms.DecodeExample(),
-      data.transforms.CastType(),
-      data.transforms.Normalize(),
+  volume_transform = data.transform.Compose([
+      data.transform.DecodeExample(),
+      data.transform.CastType(),
+      data.transform.Normalize(),
   ])
+  slice_transform = data.transform.ExtractSlice()
 
-  dataset = []
+  def slice_dataset(filename):
+    return (data.Dataset
+            .zip((data.Dataset.range(0, 100, steps),
+                  data.TFRecordDataset(filename, options)
+                      .map(volume_transform)
+                      .cache().repeat()))
+            .map(slice_transform))
 
-  for f in input_filenames:
-    volume_dataset = (tf.contrib.data.TFRecordDataset(f, options)
-        .map(volume_transform))
+  slices = (data.Dataset
+            .zip(tuple(slice_dataset(f) for f in inputs))
+            .make_one_shot_iterator().get_next())
 
-    tf.contrib.data.Dataset
-      .zip(()) for f in input_filenames)
+  with tf.train.MonitoredTrainingSession() as sess:
+    step = 0
 
-  tf.contrib.data.Dataset.zip((label_dataset, volume_dataset))
+    with html.ImageWriter(target) as writer:
+      if len(labels) > 0:
+        writer.write_head(labels)
 
-  tf.logging.info(f'converted {source} to {target}')
+      while not sess.should_stop():
+        writer.write_row(sess.run(slices))
+
+        step += 1
+
+  tf.logging.info(f'wrote {step} slices to {target}')
 
 
 def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
-  if len(args.inputs_labels) != len(args.input_filenames):
-    raise argparse.ArgumentError('input labels and filenames differ in length')
+  if args.labels and len(args.labels) != len(args.input_filenames):
+    raise ValueError('input labels and filenames differ in length')
 
-  compare(args.inputs_labels, args.input_filenames, args.output_filename)
+  compare(args.input_filenames, args.output_filename, args.labels, args.steps)
 
 
 if __name__ == '__main__':
-  parser=argparse.ArgumentParser('compare')
-  parser.add_argument('--input-labels', required = True, nargs = '+')
-  parser.add_argument('--input-filenames', required = True, nargs = '+')
-  parser.add_argument('--output-filename', default = 'output.html')
+  parser = argparse.ArgumentParser('compare')
+  parser.add_argument('--steps', type=int, default=4)
+  parser.add_argument('--labels', nargs='+', default=[])
+  parser.add_argument('--input-filenames', required=True, nargs='+')
+  parser.add_argument('--output-filename', default='output.html')
 
   main(parser.parse_args())
