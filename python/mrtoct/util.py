@@ -16,7 +16,7 @@ def meshgrid_2d(start, stop, delta=1):
     cols = tf.range(start[-1], stop[-1], delta, dtype=tf.int32)
     rows = tf.range(start[-2], stop[-2], delta, dtype=tf.int32)
 
-    return tf.stack(tf.meshgrid(cols, rows, indexing='ij'), 2)
+    return tf.stack(tf.meshgrid(rows, cols, indexing='ij'), 2)
 
 
 def meshgrid_3d(start, stop, delta=1):
@@ -43,7 +43,7 @@ def meshgrid_3d(start, stop, delta=1):
     rows = tf.range(start[-2], stop[-2], delta, dtype=tf.int32)
     slices = tf.range(start[-3], stop[-3], delta, dtype=tf.int32)
 
-    return tf.stack(tf.meshgrid(slices, cols, rows, indexing='ij'), 3)
+    return tf.stack(tf.meshgrid(slices, rows, cols, indexing='ij'), 3)
 
 
 def spatial_gradient_3d(volume):

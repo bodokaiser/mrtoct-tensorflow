@@ -54,9 +54,6 @@ class CenterPad:
       target_shape = tf.convert_to_tensor(self.shape, name='target_shape')
       input_shape = tf.shape(x, name='input_shape')
 
-      print(target_shape)
-      print(input_shape)
-
       # TODO: check explicit if tensor shapes are compatible
       ndims = target_shape.shape.num_elements()
 

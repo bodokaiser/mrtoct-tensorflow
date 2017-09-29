@@ -24,15 +24,13 @@ def train(input_path, output_path, params, batch_size, num_epochs):
     pshape = tf.convert_to_tensor(params.patch_shape, name='patch_shape')
 
   with tf.name_scope('indices'):
-    off = pshape // 2
-    size = vshape - off
+    off = pshape[:3] // 2
+    size = vshape[:3] - off
 
-    # TODO: fix uncommented code (seems to yield out of range indices)
-    # indices = tf.concat([
-    #patch.sample_meshgrid_3d(off, size, params.sample_delta),
-    #patch.sample_uniform_3d(off, size, params.sample_num),
-    #], 0)
-    indices = patch.sample_uniform_3d(off, size, params.sample_num)
+    indices = tf.concat([
+        patch.sample_meshgrid_3d(off, size, params.sample_delta),
+        patch.sample_uniform_3d(off, size, params.sample_num),
+    ], 0)
     indices = tf.random_shuffle(indices)
     indices_len = tf.to_int64(tf.shape(indices)[0])
 

@@ -3,7 +3,7 @@ import tensorflow as tf
 from mrtoct import util
 
 
-def sample_meshgrid_3d(start, stop, delta=1):
+def meshgrid_3d(start, stop, delta=1):
   """Samples indices from 3d meshgrid.
 
   Args:
@@ -14,11 +14,16 @@ def sample_meshgrid_3d(start, stop, delta=1):
     dataset
   """
   with tf.name_scope('sample_meshgrid'):
-    return tf.transpose(tf.reshape(
-        util.meshgrid_3d(start, stop, delta), [3, -1]))
+    indices = util.meshgrid_3d(start, stop, delta)
+
+    flatten = tf.transpose(indices, [3, 0, 1, 2], name='permute')
+    flatten = tf.reshape(flatten, [3, -1], name='flatten')
+    flatten = tf.transpose(flatten, name='transpose')
+
+    return flatten
 
 
-def sample_uniform_3d(start, stop, size):
+def uniform_3d(start, stop, size):
   """Samples indices from 3d uniform distribution.
 
   Args:
