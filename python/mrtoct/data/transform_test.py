@@ -7,15 +7,15 @@ from mrtoct import data
 class TransformTest(tf.test.TestCase):
 
   def test_compose(self):
-    def fn1(i):
-      return i + 1
+    def fn1(x, y):
+      return x + y
 
-    def fn2(i):
-      return i + 2
+    def fn2(x):
+      return 2 * x
 
     t = data.transform.Compose([fn1, fn2])
 
-    self.assertEqual(3, t(0))
+    self.assertEqual(8, t(3, 1))
 
   def test_cast_type(self):
     x = tf.constant(1, tf.int32)

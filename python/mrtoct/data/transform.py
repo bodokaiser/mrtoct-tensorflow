@@ -10,12 +10,15 @@ class Compose:
     assert len(transforms) > 0
     self.transforms = transforms
 
-  def __call__(self, x):
+  def __call__(self, *args):
     with tf.name_scope('compose'):
       for fn in self.transforms:
-        x = fn(x)
+        if type(args) is tuple:
+          args = fn(*args)
+        else:
+          args = fn(args)
 
-      return x
+      return args
 
 
 class CastType:
@@ -54,13 +57,13 @@ class CenterPad:
       ndim1 = input_shape.shape.num_elements()
       ndim2 = target_shape.shape.num_elements()
 
-      if ndim1 != ndim2:
-        raise RuntimeError(f'''target and input shape should equal
-        but were {ndim1} and {ndim2}''')
+      # if ndim1 != ndim2:
+      #  raise RuntimeError(f'''target and input shape should equal
+      #  but were {ndim1} and {ndim2}''')
 
       off = (target_shape - input_shape) / 2
       pad = tf.stack([tf.stack([tf.floor(off[i]), tf.ceil(off[i])])
-                      for i in range(ndim1)])
+                      for i in range(ndim2)])
 
       return tf.reshape(tf.pad(x, tf.to_int32(pad)), target_shape)
 
