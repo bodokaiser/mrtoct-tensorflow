@@ -54,16 +54,12 @@ class CenterPad:
       target_shape = tf.convert_to_tensor(self.shape)
       input_shape = tf.shape(x)
 
-      ndim1 = input_shape.shape.num_elements()
-      ndim2 = target_shape.shape.num_elements()
-
-      # if ndim1 != ndim2:
-      #  raise RuntimeError(f'''target and input shape should equal
-      #  but were {ndim1} and {ndim2}''')
+      # TODO: check explicit if tensor shapes are compatible
+      ndims = target_shape.shape.num_elements()
 
       off = (target_shape - input_shape) / 2
       pad = tf.stack([tf.stack([tf.floor(off[i]), tf.ceil(off[i])])
-                      for i in range(ndim2)])
+                      for i in range(ndims)])
 
       return tf.reshape(tf.pad(x, tf.to_int32(pad)), target_shape)
 
@@ -144,8 +140,8 @@ class ExtractPatch:
 
   def __call__(self, index, x):
     with tf.name_scope('extract_patch'):
-      index = tf.convert_to_tensor(index)
-      shape = tf.convert_to_tensor(self.shape)
+      index = tf.convert_to_tensor(index, name='index')
+      shape = tf.convert_to_tensor(self.shape, name='shape')
       start = index - tf.cast(tf.floor(shape / 2), index.dtype)
 
       return tf.slice(x, start, shape)

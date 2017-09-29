@@ -31,9 +31,12 @@ def adv_g(fake_score):
 
 def gdl(targets, outputs):
   with tf.name_scope('gdl'):
-    targets_grad = util.gradient(targets)
-    outputs_grad = util.gradient(outputs)
+    targets_grad = util.spatial_gradient_3d(targets)
+    outputs_grad = util.spatial_gradient_3d(outputs)
 
-    return (mse(targets_grad[0], outputs_grad[0]) +
-            mse(targets_grad[1], outputs_grad[1]) +
-            mse(targets_grad[2], outputs_grad[2]))
+    loss = tf.zeros([])
+
+    for i in range(3):
+      loss += mse(tf.abs(targets_grad[i]), tf.abs(outputs_grad[i]))
+
+    return loss

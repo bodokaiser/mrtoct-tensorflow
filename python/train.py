@@ -20,17 +20,19 @@ def train(input_path, output_path, params, batch_size, num_epochs):
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
 
-    vshape = tf.convert_to_tensor(params.volume_shape)
-    pshape = tf.convert_to_tensor(params.patch_shape)
+    vshape = tf.convert_to_tensor(params.volume_shape, name='volume_shape')
+    pshape = tf.convert_to_tensor(params.patch_shape, name='patch_shape')
 
   with tf.name_scope('indices'):
-    off = pshape // 2
+    off = pshape  # // 2
     size = vshape - off
 
-    indices = tf.concat([
-        patch.sample_meshgrid_3d(off, size, params.sample_delta),
-        patch.sample_uniform_3d(off, size, params.sample_num),
-    ], -1)
+    # TODO: fix uncommented code (seems to yield out of range indices)
+    # indices = tf.concat([
+    #patch.sample_meshgrid_3d(off, size, params.sample_delta),
+    #patch.sample_uniform_3d(off, size, params.sample_num),
+    #], 0)
+    indices = patch.sample_uniform_3d(off, size, params.sample_num)
     indices = tf.random_shuffle(indices)
     indices_len = tf.to_int64(tf.shape(indices)[0])
 
@@ -54,10 +56,10 @@ def train(input_path, output_path, params, batch_size, num_epochs):
       index_dataset = data.Dataset.from_tensor_slices(indices)
 
     with tf.name_scope('volume'):
-      inputs_volume_dataset = (data.TFRecordDataset(inputs_filenames, options)
-                                   .map(volume_transform).cache())
-      targets_volume_dataset = (data.TFRecordDataset(inputs_filenames, options)
-                                    .map(volume_transform).cache())
+      inputs_volume_dataset = data.TFRecordDataset(
+          inputs_filenames, options).map(volume_transform).cache()
+      targets_volume_dataset = data.TFRecordDataset(
+          targets_filenames, options).map(volume_transform).cache()
 
     def extract_patches(volume):
       volume_dataset = data.Dataset.from_tensors(volume).repeat(indices_len)
@@ -72,8 +74,8 @@ def train(input_path, output_path, params, batch_size, num_epochs):
 
       patch_dataset = (data.Dataset
                        .zip((inputs_patch_dataset, targets_patch_dataset))
-                       .batch(params.batch_size)
-                       .repeat(params.num_epochs))
+                       .batch(batch_size)
+                       .repeat(num_epochs))
 
   with tf.name_scope('iterator'):
     patch_iterator = patch_dataset.make_initializable_iterator()
@@ -110,7 +112,7 @@ def train(input_path, output_path, params, batch_size, num_epochs):
     while not sess.should_stop():
       s, _ = sess.run([step, spec.train_op])
 
-      if s % (num_indices // params.batch_size - 1) == 0:
+      if s % (num_indices // batch_size - 1) == 0:
         # reininitialize patch iterator in order to get sample new indices
         sess.run(patch_iterator.initializer)
 
@@ -132,7 +134,8 @@ def main(args):
       sample_num=10000,
       patch_shape=[32, 32, 32],
       volume_shape=[240, 300, 340],
-      networks=model.gan.synthesis)
+      generator=model.gan.synthesis.generator_network,
+      discriminator=model.gan.synthesis.discriminator_network)
   hparams.parse(args.hparams)
 
   train(args.input_path, args.output_path, hparams,
