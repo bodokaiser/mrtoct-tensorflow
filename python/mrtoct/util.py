@@ -36,8 +36,8 @@ def meshgrid_3d(start, stop, delta=1):
     shape1 = start.shape.as_list()
     shape2 = stop.shape.as_list()
 
-    if shape1 != shape2 or len(shape1) != 1 or shape1[0] != 3:
-      raise ValueError(f'start and stop should have shape [3] not {shape1}')
+    # if shape1 != shape2 or len(shape1) != 1 or shape1[0] != 3:
+    #  raise ValueError(f'start and stop should have shape [3] not {shape1}')
 
     cols = tf.range(start[-1], stop[-1], delta, dtype=tf.int32)
     rows = tf.range(start[-2], stop[-2], delta, dtype=tf.int32)

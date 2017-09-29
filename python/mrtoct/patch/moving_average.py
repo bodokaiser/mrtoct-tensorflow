@@ -12,7 +12,7 @@ class SparseMovingAverage:
   some patches may have more overlap than others.
   """
 
-  def __init__(self, shape, name, dtype=tf.float32):
+  def __init__(self, shape, name='', dtype=tf.float32):
     """Creates a new SparseMovingAverage.
 
     Args:
