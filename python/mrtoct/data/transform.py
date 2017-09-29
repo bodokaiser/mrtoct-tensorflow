@@ -51,17 +51,23 @@ class CenterPad:
 
   def __call__(self, x):
     with tf.name_scope('center_pad'):
-      target_shape = tf.convert_to_tensor(self.shape)
-      input_shape = tf.shape(x)
+      target_shape = tf.convert_to_tensor(self.shape, name='target_shape')
+      input_shape = tf.shape(x, name='input_shape')
+
+      print(target_shape)
+      print(input_shape)
 
       # TODO: check explicit if tensor shapes are compatible
       ndims = target_shape.shape.num_elements()
 
-      off = (target_shape - input_shape) / 2
-      pad = tf.stack([tf.stack([tf.floor(off[i]), tf.ceil(off[i])])
-                      for i in range(ndims)])
+      paddings = []
 
-      return tf.reshape(tf.pad(x, tf.to_int32(pad)), target_shape)
+      for i in range(ndims):
+        offset = (target_shape[i] - input_shape[i]) / 2
+
+        paddings.append(tf.stack([tf.floor(offset), tf.ceil(offset)]))
+
+      return tf.pad(x, tf.to_int32(tf.stack(paddings)))
 
 
 class CenterCrop:
@@ -142,6 +148,13 @@ class ExtractPatch:
     with tf.name_scope('extract_patch'):
       index = tf.convert_to_tensor(index, name='index')
       shape = tf.convert_to_tensor(self.shape, name='shape')
-      start = index - tf.cast(tf.floor(shape / 2), index.dtype)
+      offset = tf.cast(tf.floor(shape / 2), index.dtype)
+
+      start = []
+      for i in range(index.get_shape().num_elements()):
+        start.append(index[i] - offset[i])
+      start.append(0)
+
+      start = tf.stack(start, name='start')
 
       return tf.slice(x, start, shape)

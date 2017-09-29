@@ -24,7 +24,7 @@ def train(input_path, output_path, params, batch_size, num_epochs):
     pshape = tf.convert_to_tensor(params.patch_shape, name='patch_shape')
 
   with tf.name_scope('indices'):
-    off = pshape  # // 2
+    off = pshape // 2
     size = vshape - off
 
     # TODO: fix uncommented code (seems to yield out of range indices)
@@ -49,7 +49,6 @@ def train(input_path, output_path, params, batch_size, num_epochs):
     ])
     patch_transform = data.transform.Compose([
         data.transform.ExtractPatch(pshape),
-        data.transform.ExpandDims(),
     ])
 
     with tf.name_scope('index'):
@@ -132,8 +131,8 @@ def main(args):
       adv_weight=0.50,
       sample_delta=4,
       sample_num=10000,
-      patch_shape=[32, 32, 32],
-      volume_shape=[240, 300, 340],
+      patch_shape=[32, 32, 32, 1],
+      volume_shape=[240, 320, 340, 1],
       generator=model.gan.synthesis.generator_network,
       discriminator=model.gan.synthesis.discriminator_network)
   hparams.parse(args.hparams)

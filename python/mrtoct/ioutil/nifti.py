@@ -16,7 +16,7 @@ def read(filename):
 def voxel_to_tensor_space(volume):
   """Rearranges volume from voxel to tensor space.
 
-  Changes volume from Width x Height x Depth to Depth x Height x Width
+  Chanhes volume from [width, height, depth] to [depth, height, width, 1]
   and reverses slice and row order.
 
   Args:
@@ -27,6 +27,7 @@ def voxel_to_tensor_space(volume):
   volume = np.transpose(volume)
   volume = np.flip(volume, 0)
   volume = np.flip(volume, 1)
+  volume = np.expand_dims(volume, -1)
 
   return volume
 
@@ -39,6 +40,7 @@ def tensor_to_voxel_space(volume):
   Returns:
     volume: numpy array in voxel space
   """
+  volume = volume[:, :, :, 0]
   volume = np.flip(volume, 1)
   volume = np.flip(volume, 0)
   volume = np.transpose(volume)
