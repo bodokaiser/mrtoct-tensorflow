@@ -33,7 +33,7 @@ def discriminator_conv(inputs, num_filters):
   outputs = layers.Conv3D(num_filters, 5)(inputs)
   outputs = layers.BatchNorm()(outputs)
   outputs = layers.Activation(tf.nn.relu)(outputs)
-  outputs = layers.MaxPool3D(5, 1)(outputs)
+  outputs = layers.MaxPool3D(3, 1)(outputs)
 
   return outputs
 
@@ -50,7 +50,7 @@ def discriminator_dense(inputs, num_filters, activation=None):
 
 def discriminator_network(params):
   """Creates a synthesis discriminator network."""
-  inputs = outputs = layers.Input(shape=(32, 32, 32, 1))
+  inputs = outputs = layers.Input(shape=(16, 16, 16, 1))
 
   for i, nf in enumerate([32, 64, 128, 256]):
     with tf.variable_scope(f'layer{i}'):

@@ -1,8 +1,7 @@
 import argparse
-import os
 import tensorflow as tf
 
-from mrtoct import ioutil, data, model, patch
+from mrtoct import ioutil, data, model
 
 
 def train(inputs_path, targets_path, params, log_path, batch_size, num_epochs):
@@ -21,12 +20,16 @@ def train(inputs_path, targets_path, params, log_path, batch_size, num_epochs):
     ])
 
     with tf.name_scope('inputs'):
-      inputs_dataset = data.TFRecordDataset(
-          inputs_path, compression).map(patch_transform).cache()
+      inputs_dataset = (data.TFRecordDataset(inputs_path, compression)
+                        .map(patch_transform)
+                        .map(lambda x: tf.reshape(x, [32, 32, 32, 1]))
+                        .cache())
 
     with tf.name_scope('targets'):
-      targets_dataset = data.TFRecordDataset(
-          targets_path, compression).map(patch_transform).cache()
+      targets_dataset = (data.TFRecordDataset(targets_path, compression)
+                         .map(patch_transform)
+                         .map(lambda x: tf.reshape(x, [16, 16, 16, 1]))
+                         .cache())
 
     with tf.name_scope('patches'):
       patch_dataset = (data.Dataset
@@ -86,14 +89,14 @@ def main(args):
       discriminator=model.gan.synthesis.discriminator_network)
   hparams.parse(args.hparams)
 
-  train(args.input_path, args.output_path, hparams, args.log_path,
+  train(args.inputs_path, args.targets_path, hparams, args.log_path,
         args.batch_size, args.num_epochs)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--inputs-path', required=True)
-  parser.add_argument('--outputs-path', required=True)
+  parser.add_argument('--targets-path', required=True)
   parser.add_argument('--log-path', default='results')
   parser.add_argument('--num-epochs', type=int, default=None)
   parser.add_argument('--batch-size', type=int, default=10)

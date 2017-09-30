@@ -76,7 +76,7 @@ def create_discriminator(inputs, outputs, targets, mode, params):
     #fake_score = discriminator(tf.concat([inputs, outputs], -1))
 
     real_score = discriminator(targets)
-    fake_score = discriminator(inputs)
+    fake_score = discriminator(outputs)
 
     # tf.summary.image('real_score', tf.image.convert_image_dtype(
     #    real_score, tf.uint8), 1)
