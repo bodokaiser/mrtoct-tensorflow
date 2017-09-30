@@ -5,42 +5,37 @@ import tensorflow as tf
 from mrtoct import ioutil
 
 
-def convert(input_path, output_path):
-  """Converts NIfTI volumes in `input_patch` to TFRecord at `output_path`.
+def convert(input_paths, output_path):
+  """Converts volumes from NIfTI to TFRecord format.
 
   Args:
-    input_path: path to directory with NIfTI files inside
-    output_path: path to directory to write TFRecords to
+    input_path: list of paths to nifti volumes
+    output_path: path to write TFRecords to
   """
   encoder = ioutil.TFRecordEncoder()
   options = ioutil.TFRecordOptions
 
-  os.makedirs(output_path, exist_ok=True)
+  os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-  for fn, ext in map(os.path.splitext, os.listdir(input_path)):
-    if ext != '.nii':
-      continue
+  with tf.python_io.TFRecordWriter(output_path, options) as writer:
+    for input_path in input_paths:
+      volume = ioutil.read_nifti(input_path)
+      volume = ioutil.voxel_to_tensor_space(volume)
 
-    source = os.path.join(input_path, f'{fn}.nii')
-    target = os.path.join(output_path, f'{fn}.tfrecord')
-    volume = ioutil.read_nifti(os.path.join(source))
-    volume = ioutil.voxel_to_tensor_space(volume)
-
-    with tf.python_io.TFRecordWriter(target, options) as writer:
       writer.write(encoder.encode(volume))
 
-      tf.logging.info(f'converted {source} to {target}')
+      tf.logging.info(f'Wrote {input_path} to {output_path}')
 
 
 def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
-  convert(args.input_path, args.output_path)
+  convert(args.input_paths, args.output_path)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser('convert')
-  parser.add_argument('--input-path', default='../data/nifti')
-  parser.add_argument('--output-path', default='../data/tfrecord')
+  parser.add_argument('--input-paths', required=True, nargs='+')
+  parser.add_argument('--output-path', required=True)
 
   main(parser.parse_args())
