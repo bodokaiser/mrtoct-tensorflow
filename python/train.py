@@ -1,39 +1,65 @@
 import argparse
 import tensorflow as tf
 
-from mrtoct import ioutil, data, model
+from mrtoct import ioutil, data, model, patch
 
 
-def train(inputs_path, targets_path, params, log_path, batch_size, num_epochs):
+def train(inputs_path, targets_path, log_path, params, batch_size, num_epochs):
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
 
+  with tf.name_scope('shapes'):
+    vshape = tf.convert_to_tensor(params.volume_shape, name='volume_shape')
+    pshape = tf.convert_to_tensor(params.patch_shape, name='patch_shape')
+
+  with tf.name_scope('indices'):
+    off = pshape[:3] // 2
+    size = vshape[:3] - off
+
+    indices = patch.sample_uniform_3d(off, size, params.sample_num),
+
   with tf.name_scope('dataset'):
-    compression = ioutil.TFRecordOptions.get_compression_type_string(
+    options = ioutil.TFRecordOptions.get_compression_type_string(
         ioutil.TFRecordOptions)
 
-    patch_transform = data.transform.Compose([
+    volume_transform = data.transform.Compose([
         data.transform.DecodeExample(),
         data.transform.CastType(),
         data.transform.Normalize(),
         data.transform.CenterMean(),
+        data.transform.CenterPad(vshape),
     ])
 
-    with tf.name_scope('inputs'):
-      inputs_dataset = (data.TFRecordDataset(inputs_path, compression)
-                        .map(patch_transform)
-                        .map(lambda x: tf.reshape(x, [32, 32, 32, 1]))
-                        .cache())
+    with tf.name_scope('index'):
+      index_dataset = data.Dataset.from_tensor_slices(indices)
 
-    with tf.name_scope('targets'):
-      targets_dataset = (data.TFRecordDataset(targets_path, compression)
-                         .map(patch_transform)
-                         .map(lambda x: tf.reshape(x, [16, 16, 16, 1]))
-                         .cache())
+    with tf.name_scope('volume'):
+      inputs_volume_dataset = data.TFRecordDataset(
+          inputs_path, options).map(volume_transform).cache()
+      targets_volume_dataset = data.TFRecordDataset(
+          targets_path, options).map(volume_transform).cache()
 
-    with tf.name_scope('patches'):
+    def patch_extractor(shape):
+      patch_transform = data.transform.ExtractPatch(shape)
+
+      def extract_patches(volume):
+        volume_dataset = (data.Dataset.from_tensors(volume)
+                          .repeat(params.sample_num))
+
+        return (data.Dataset
+                .zip((index_dataset, volume_dataset))
+                .map(patch_transform))
+
+      return extract_patches
+
+    with tf.name_scope('patch'):
+      inputs_patch_dataset = inputs_volume_dataset.flat_map(
+          patch_extractor([32, 32, 32, 1]))
+      targets_patch_dataset = targets_volume_dataset.flat_map(
+          patch_extractor([16, 16, 16, 1]))
+
       patch_dataset = (data.Dataset
-                       .zip((inputs_dataset, targets_dataset))
+                       .zip((inputs_patch_dataset, targets_patch_dataset))
                        .batch(batch_size)
                        .repeat(num_epochs))
 
@@ -67,9 +93,12 @@ def train(inputs_path, targets_path, params, log_path, batch_size, num_epochs):
           checkpoint_dir=log_path,
           save_checkpoint_secs=600,
           save_summaries_secs=100) as sess:
-
     while not sess.should_stop():
       s, _ = sess.run([step, spec.train_op])
+
+      if s % (params.sample_num // batch_size - 1) == 0:
+        # reininitialize patch iterator in order to get sample new indices
+        sess.run(patch_iterator.initializer)
 
       if s % 100 == 0:
         tf.logging.info(f'step: {s}')
@@ -85,11 +114,14 @@ def main(args):
       mae_weight=0.00,
       gdl_weight=1.00,
       adv_weight=0.50,
+      sample_num=7000,
+      patch_shape=[32, 32, 32, 1],
+      volume_shape=[260, 340, 360, 1],
       generator=model.gan.synthesis.generator_network,
       discriminator=model.gan.synthesis.discriminator_network)
   hparams.parse(args.hparams)
 
-  train(args.inputs_path, args.targets_path, hparams, args.log_path,
+  train(args.inputs_path, args.targets_path, args.log_path, hparams,
         args.batch_size, args.num_epochs)
 
 

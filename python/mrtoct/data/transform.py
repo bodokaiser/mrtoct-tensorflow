@@ -143,7 +143,7 @@ class ExtractPatch:
 
   def __call__(self, index, x):
     with tf.name_scope('extract_patch'):
-      index = tf.convert_to_tensor(index, name='index')
+      index = tf.convert_to_tensor(index[0], name='index')
       shape = tf.convert_to_tensor(self.shape, name='shape')
       offset = tf.cast(tf.floor(shape / 2), index.dtype)
 
