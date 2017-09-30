@@ -13,10 +13,11 @@ class Conv2D(tf.layers.Conv2D):
 class Conv3D(tf.layers.Conv3D):
   """Same as tf.layers.Conv3D but with better defaults."""
 
-  def __init__(self, *args, **kwargs):
+  def __init__(self, num_filters, kernel_size, padding='same'):
     init = tf.contrib.layers.xavier_initializer()
 
-    super().__init__(*args, kernel_initializer=init, padding='same', **kwargs)
+    super().__init__(num_filters, kernel_size,
+                     padding=padding, kernel_initializer=init)
 
 
 class Conv2DTranspose(tf.layers.Conv2DTranspose):

@@ -14,7 +14,7 @@ class SynthesisTest(tf.test.TestCase):
     x = tf.ones([10, 32, 32, 32, 1])
     y = network(x)
 
-    self.assertAllEqual(x.shape, y.shape)
+    self.assertAllEqual(tf.TensorShape([10, 16, 16, 16, 1]), y.shape)
 
   def test_discriminator(self):
     network = model.synthesis.discriminator_network(self.params)

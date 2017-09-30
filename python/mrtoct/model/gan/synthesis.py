@@ -3,9 +3,10 @@ import tensorflow as tf
 from mrtoct.model import layers
 
 
-def generator_conv(inputs, kernel_size, num_filters, activation=tf.nn.relu):
+def generator_conv(inputs, kernel_size, num_filters, padding,
+                   activation=tf.nn.relu):
   """Creates a synthesis generator conv layer."""
-  outputs = layers.Conv3D(num_filters, kernel_size)(inputs)
+  outputs = layers.Conv3D(num_filters, kernel_size, padding=padding)(inputs)
   outputs = layers.BatchNorm()(outputs)
   outputs = layers.Activation(activation)(outputs)
 
@@ -18,17 +19,18 @@ def generator_network(params):
 
   for i, ks in enumerate([9, 3, 3, 3, 9, 3, 3, 7, 3]):
     with tf.variable_scope(f'conv{i}'):
-      outputs = generator_conv(outputs, ks, 64 if i in [4, 5] else 32)
+      outputs = generator_conv(outputs, ks, 64 if i in [4, 5] else 32,
+                               'valid' if ks == 9 else 'same')
 
   with tf.variable_scope('final'):
-    outputs = generator_conv(outputs, 3, 1, tf.nn.tanh)
+    outputs = generator_conv(outputs, 3, 1, 'same', activation=tf.nn.tanh)
 
   return layers.Network(inputs, outputs, name='generator')
 
 
 def discriminator_conv(inputs, num_filters):
   """Creates a synthesis discriminator conv layer."""
-  outputs = layers.Conv3D(num_filters, 5, 1)(inputs)
+  outputs = layers.Conv3D(num_filters, 5)(inputs)
   outputs = layers.BatchNorm()(outputs)
   outputs = layers.Activation(tf.nn.relu)(outputs)
   outputs = layers.MaxPool3D(5, 1)(outputs)

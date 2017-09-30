@@ -84,7 +84,7 @@ def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   hparams = tf.contrib.training.HParams(
-      sample_num=1000,
+      sample_num=8000,
       seeds=[args.seed,
              args.seed * 2,
              args.seed * 3],
