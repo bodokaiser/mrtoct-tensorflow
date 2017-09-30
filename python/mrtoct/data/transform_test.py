@@ -109,13 +109,20 @@ class TransformTest(tf.test.TestCase):
       self.assertAllEqual(z, t2(2, x).eval())
 
   def test_extract_patch(self):
-    x = np.random.randn(10, 10, 10, 1)
+    x = np.random.randint(0, 256, size=(10, 10, 10, 1))
     y = x[4:7, 4:7, 4:7]
+    z = x[4:6, 4:6, 4:6]
 
-    t = data.transform.ExtractPatch([3, 3, 3, 1])
+    t1 = data.transform.ExtractPatch([3, 3, 3, 1])
+    t2 = data.transform.ExtractPatch([2, 2, 2, 1])
 
     with self.test_session():
-      self.assertAllEqual(y, t([5, 5, 5], x).eval())
+      a = t1([5, 5, 5], x).eval()
+      b = t2([5, 5, 5], x).eval()
+
+      self.assertAllEqual(y, a)
+      self.assertAllEqual(z, b)
+      self.assertAllEqual(a[0:2, 0:2, 0:2], b)
 
 
 if __name__ == '__main__':

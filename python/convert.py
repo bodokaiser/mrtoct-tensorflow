@@ -34,8 +34,8 @@ def main(args):
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser('convert')
-  parser.add_argument('--input-paths', required=True, nargs='+')
+  parser = argparse.ArgumentParser('patch')
+  parser.add_argument('--input-path', required=True, nargs='+')
   parser.add_argument('--output-path', required=True)
 
   main(parser.parse_args())

@@ -23,7 +23,7 @@ def meshgrid_3d(start, stop, delta=1):
     return flatten
 
 
-def uniform_3d(start, stop, size):
+def uniform_3d(start, stop, size, seeds=[None, None, None]):
   """Samples indices from 3d uniform distribution.
 
   Args:
@@ -41,7 +41,7 @@ def uniform_3d(start, stop, size):
       raise ValueError('start and stop should have shape [3]')
 
     return tf.stack([
-        tf.random_uniform([size], start[0], stop[0], tf.int32),
-        tf.random_uniform([size], start[1], stop[1], tf.int32),
-        tf.random_uniform([size], start[2], stop[2], tf.int32),
+        tf.random_uniform([size], start[0], stop[0], tf.int32, seeds[0]),
+        tf.random_uniform([size], start[1], stop[1], tf.int32, seeds[1]),
+        tf.random_uniform([size], start[2], stop[2], tf.int32, seeds[2]),
     ], 1)

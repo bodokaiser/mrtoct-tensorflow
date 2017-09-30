@@ -19,10 +19,10 @@ Options = tf.python_io.TFRecordOptions(
 
 
 class Encoder:
-  """Encodes a numpy array as tfrecord."""
+  """Encodes a numpy volume array as tfrecord."""
 
   def encode(self, volume):
-    """Encodes a numpy array as serialized tfrecord string.
+    """Returns numpy volume array as tfrecord string.
 
     Args:
       volume: numpy array
@@ -40,7 +40,7 @@ class Encoder:
 
 
 class Decoder:
-  """Decodes a tfrecord as numpy array."""
+  """Decodes a tfrecord volume to tensor."""
 
   def __init__(self):
     self.features = {
@@ -51,12 +51,12 @@ class Decoder:
     }
 
   def decode(self, example):
-    """Decodes a tfrecord string to numpy array.
+    """Returns tensor from tfrecord string.
 
     Args:
-      example: tfrecord serialized to string
+      example: tfrecord string
     Returns:
-      volume: numpy array
+      volume: volume tensor
     """
     with tf.name_scope('decode'):
       features = tf.parse_single_example(example, features=self.features)

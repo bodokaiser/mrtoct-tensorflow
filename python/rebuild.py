@@ -1,9 +1,5 @@
 import argparse
-import numpy as np
-import nibabel as nb
 import tensorflow as tf
-
-from matplotlib import pyplot as plt
 
 from mrtoct import ioutil, data, patch, util
 
@@ -17,13 +13,15 @@ def rebuild(input_path, output_path, params, batch_size):
     params: hyper parameters to use for model
     stack: if `True` stack new build to channels
   """
-  with tf.name_scope('config'):
-    pshape = tf.convert_to_tensor(params.patch_shape)
-    vshape = tf.convert_to_tensor(params.volume_shape)
+  options = ioutil.TFRecordOptions
 
-  with tf.name_scope('datasets'):
-    options = ioutil.TFRecordOptions.get_compression_type_string(
-        ioutil.TFRecordOptions)
+  for i, tfrecord in enumerate(tf.python_io.tf_record_iterator(
+          input_path, options)):
+    tf.reset_default_graph()
+
+    with tf.name_scope('config'):
+      pshape = tf.convert_to_tensor(params.patch_shape)
+      vshape = tf.convert_to_tensor(params.volume_shape)
 
     with tf.name_scope('volume'):
       volume_transform = data.transform.Compose([
@@ -34,63 +32,62 @@ def rebuild(input_path, output_path, params, batch_size):
           data.transform.CenterPad(vshape),
       ])
 
-      volume_dataset = data.TFRecordDataset(
-          input_path, options).map(volume_transform).cache()
+      volume_dataset = (data.Dataset
+                        .from_tensors(tfrecord)
+                        .map(volume_transform)
+                        .cache())
 
-    with tf.name_scope('index'):
-      start = pshape[:3] // 2
-      stop = vshape[:3] - start
+      with tf.name_scope('index'):
+        start = pshape[:3] // 2
+        stop = vshape[:3] - start
 
-      indices = patch.sample_meshgrid_3d(start, stop, params.sample_delta)
-      indices_len = tf.to_int64(tf.shape(indices)[0])
+        indices = patch.sample_meshgrid_3d(start, stop, params.sample_delta)
+        indices_len = tf.to_int64(tf.shape(indices)[0])
 
-      index_dataset = data.Dataset.from_tensor_slices(indices)
+        index_dataset = data.Dataset.from_tensor_slices(indices)
 
-    with tf.name_scope('patch'):
-      patch_transform = data.transform.ExtractPatch(pshape)
+      with tf.name_scope('patch'):
+        patch_transform = data.transform.ExtractPatch(pshape)
 
-      patch_dataset = (data.Dataset
-                       .zip((index_dataset,
-                             volume_dataset.repeat(indices_len)))
-                       .map(patch_transform))
+        patch_dataset = (data.Dataset
+                         .zip((index_dataset,
+                               volume_dataset.repeat(indices_len)))
+                         .map(patch_transform))
 
-    with tf.name_scope('combined'):
-      def expand_index(index):
-        offset = pshape[:3] // 2
-        return util.meshgrid_3d(index - offset, index + offset, 1)
+      with tf.name_scope('combined'):
+        def expand_index(index):
+          offset = pshape[:3] // 2
+          return util.meshgrid_3d(index - offset, index + offset, 1)
 
-      combined_dataset = data.Dataset.zip(
-          (index_dataset.map(expand_index), patch_dataset)).batch(batch_size)
+        combined_dataset = data.Dataset.zip(
+            (index_dataset.map(expand_index), patch_dataset)).batch(batch_size)
 
-  with tf.name_scope('iterator/patches'):
-    combined_iterator = combined_dataset.make_initializable_iterator()
+    with tf.name_scope('iterator'):
+      combined_iterator = combined_dataset.make_initializable_iterator()
 
-    indices, patches = combined_iterator.get_next()
+      indices, patches = combined_iterator.get_next()
 
-  with tf.name_scope('aggregation'):
-    sma = patch.SparseMovingAverage(params.volume_shape[:3], name='build')
+    with tf.name_scope('aggregation'):
+      sma = patch.SparseMovingAverage(params.volume_shape[:3], name='build')
 
-    update = sma.update(indices, patches[:, :, :, :, 0])
-    average = sma.average()
+      update = sma.update(indices, patches[:, :, :, :, 0])
+      average = sma.average()
 
-  with tf.name_scope('setup'):
-    step = tf.assign_add(tf.train.get_or_create_global_step(), 1)
+    with tf.name_scope('session'):
+      step = tf.assign_add(tf.train.get_or_create_global_step(), 1)
 
-    scaffold = tf.train.Scaffold(init_op=tf.group(
-        tf.global_variables_initializer(),
-        combined_iterator.initializer))
+      scaffold = tf.train.Scaffold(init_op=tf.group(
+          tf.global_variables_initializer(),
+          combined_iterator.initializer))
 
-  with tf.train.MonitoredTrainingSession(scaffold=scaffold) as sess:
-    while not sess.should_stop():
-      s, _, result = sess.run([step, update, average])
+    with tf.train.MonitoredTrainingSession(scaffold=scaffold) as sess:
+      while not sess.should_stop():
+        s, _, result = sess.run([step, update, average])
 
-      if s % 100 == 0:
-        tf.logging.info(f'Step {s}')
+        if s % 100 == 0:
+          tf.logging.info(f'Processing volume {i} with batch {s}')
 
-  tf.logging.info('Completed rebuild')
-
-  nb.viewers.OrthoSlicer3D(
-      ioutil.tensor_to_voxel_space(np.expand_dims(result, 3))).show()
+    tf.logging.info(f'Completed rebuild of volume {i}')
 
 
 def main(args):

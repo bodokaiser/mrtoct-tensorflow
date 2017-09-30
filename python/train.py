@@ -5,72 +5,32 @@ import tensorflow as tf
 from mrtoct import ioutil, data, model, patch
 
 
-def train(input_path, output_path, params, batch_size, num_epochs):
-  inputs_filenames = tf.gfile.Glob(
-      os.path.join(input_path, 're-co-mr-*.tfrecord'))
-  targets_filenames = tf.gfile.Glob(
-      os.path.join(input_path, 're-ct-*.tfrecord'))
-
-  if len(inputs_filenames) != len(targets_filenames):
-    raise RuntimeError('input and target volumes do not match')
-
-  tf.logging.info(f'found {len(inputs_filenames)} volume pairs to train')
-
-  with tf.name_scope('config'):
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-
-    vshape = tf.convert_to_tensor(params.volume_shape, name='volume_shape')
-    pshape = tf.convert_to_tensor(params.patch_shape, name='patch_shape')
-
-  with tf.name_scope('indices'):
-    off = pshape[:3] // 2
-    size = vshape[:3] - off
-
-    indices = tf.concat([
-        patch.sample_meshgrid_3d(off, size, params.sample_delta),
-        patch.sample_uniform_3d(off, size, params.sample_num),
-    ], 0)
-    indices = tf.random_shuffle(indices)
-    indices_len = tf.to_int64(tf.shape(indices)[0])
+def train(inputs_path, targets_path, params, log_path, batch_size, num_epochs):
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
 
   with tf.name_scope('dataset'):
-    options = ioutil.TFRecordOptions.get_compression_type_string(
+    compression = ioutil.TFRecordOptions.get_compression_type_string(
         ioutil.TFRecordOptions)
 
-    volume_transform = data.transform.Compose([
+    patch_transform = data.transform.Compose([
         data.transform.DecodeExample(),
         data.transform.CastType(),
         data.transform.Normalize(),
-        data.transform.CenterPad(vshape),
         data.transform.CenterMean(),
     ])
-    patch_transform = data.transform.Compose([
-        data.transform.ExtractPatch(pshape),
-    ])
 
-    with tf.name_scope('index'):
-      index_dataset = data.Dataset.from_tensor_slices(indices)
+    with tf.name_scope('inputs'):
+      inputs_dataset = data.TFRecordDataset(
+          inputs_path, compression).map(patch_transform).cache()
 
-    with tf.name_scope('volume'):
-      inputs_volume_dataset = data.TFRecordDataset(
-          inputs_filenames, options).map(volume_transform).cache()
-      targets_volume_dataset = data.TFRecordDataset(
-          targets_filenames, options).map(volume_transform).cache()
+    with tf.name_scope('targets'):
+      targets_dataset = data.TFRecordDataset(
+          targets_path, compression).map(patch_transform).cache()
 
-    def extract_patches(volume):
-      volume_dataset = data.Dataset.from_tensors(volume).repeat(indices_len)
-
-      return (data.Dataset
-              .zip((index_dataset, volume_dataset))
-              .map(patch_transform))
-
-    with tf.name_scope('patch'):
-      inputs_patch_dataset = inputs_volume_dataset.flat_map(extract_patches)
-      targets_patch_dataset = targets_volume_dataset.flat_map(extract_patches)
-
+    with tf.name_scope('patches'):
       patch_dataset = (data.Dataset
-                       .zip((inputs_patch_dataset, targets_patch_dataset))
+                       .zip((inputs_dataset, targets_dataset))
                        .batch(batch_size)
                        .repeat(num_epochs))
 
@@ -101,17 +61,12 @@ def train(input_path, output_path, params, batch_size, num_epochs):
   with tf.train.MonitoredTrainingSession(
           config=config,
           scaffold=scaffold,
-          checkpoint_dir=output_path,
+          checkpoint_dir=log_path,
           save_checkpoint_secs=600,
           save_summaries_secs=100) as sess:
-    num_indices = sess.run(indices_len)
 
     while not sess.should_stop():
       s, _ = sess.run([step, spec.train_op])
-
-      if s % (num_indices // batch_size - 1) == 0:
-        # reininitialize patch iterator in order to get sample new indices
-        sess.run(patch_iterator.initializer)
 
       if s % 100 == 0:
         tf.logging.info(f'step: {s}')
@@ -127,22 +82,19 @@ def main(args):
       mae_weight=0.00,
       gdl_weight=1.00,
       adv_weight=0.50,
-      sample_delta=4,
-      sample_num=10000,
-      patch_shape=[32, 32, 32, 1],
-      volume_shape=[240, 320, 340, 1],
       generator=model.gan.synthesis.generator_network,
       discriminator=model.gan.synthesis.discriminator_network)
   hparams.parse(args.hparams)
 
-  train(args.input_path, args.output_path, hparams,
+  train(args.input_path, args.output_path, hparams, args.log_path,
         args.batch_size, args.num_epochs)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input-path', required=True)
-  parser.add_argument('--output-path', default='results')
+  parser.add_argument('--inputs-path', required=True)
+  parser.add_argument('--outputs-path', required=True)
+  parser.add_argument('--log-path', default='results')
   parser.add_argument('--num-epochs', type=int, default=None)
   parser.add_argument('--batch-size', type=int, default=10)
   parser.add_argument('--hparams', type=str, default='')
