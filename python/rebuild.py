@@ -78,45 +78,83 @@ def rebuild(input_path, chkpt_path, output_path, params, batch_size):
     with tf.name_scope('model'):
       step = tf.assign_add(tf.train.get_or_create_global_step(), 1)
 
-      outputs = params.generator(params)(p_values)
-      outputs = data.transform.UncenterMean()(outputs[:, :, :, :, 0])
+      with tf.variable_scope('generator'):
+        outputs = params.generator(params)(p_values)
+        outputs = data.transform.UncenterMean()(outputs[:, :, :, :, 0])
 
     with tf.name_scope('aggregator'):
       sma = patch.SparseMovingAverage(params.volume_shape[:3], name='build')
 
       update = sma.update(p_indices, outputs)
       resets = sma.initializer()
-      average = tf.convert_image_dtype(sma.average(), tf.int32)
+      average = tf.image.convert_image_dtype(sma.average(), tf.int32)
+
+    def optimistic_saver(save_file):
+      reader = tf.train.NewCheckpointReader(save_file)
+      saved_shapes = reader.get_variable_to_shape_map()
+      var_names = sorted([(var.name, var.name.split(':')[0])
+                          for var in tf.global_variables()
+                          if var.name.split(':')[0] in saved_shapes])
+      restore_vars = []
+      name2var = dict(zip(map(lambda x: x.name.split(
+          ':')[0], tf.global_variables()), tf.global_variables()))
+      with tf.variable_scope('', reuse=True):
+        for var_name, saved_var_name in var_names:
+          curr_var = name2var[saved_var_name]
+          var_shape = curr_var.get_shape().as_list()
+          if var_shape == saved_shapes[saved_var_name]:
+            restore_vars.append(curr_var)
+      saver = tf.train.Saver(restore_vars)
+      return saver
 
     tf.logging.info('Constructed computation graph')
 
     encoder = ioutil.TFRecordEncoder()
     options = ioutil.TFRecordOptions
 
-    with tf.python_io.TFRecordWriter(output_path, options) as writer:
-      with tf.train.MonitoredTrainingSession(config=config) as sess:
-        num_batches_per_volume = sess.run(indices_len) // batch_size
+    step_zero = tf.assign(step, 0)
 
-        while not sess.should_stop():
+    init = tf.group(tf.global_variables_initializer(),
+                    tf.local_variables_initializer())
+
+    saver = optimistic_saver(chkpt_path)
+    writer = tf.python_io.TFRecordWriter(output_path, options)
+
+    with tf.Session(config=config) as sess:
+      sess.run(init)
+
+      saver.restore(sess, chkpt_path)
+      sess.run(step_zero)
+
+      num_batches_per_volume = sess.run(indices_len) // batch_size
+
+      try:
+        while True:
           s, _ = sess.run([step, update])
 
-          if s % 1000 == 0:
+          if s % 100 == 0:
             tf.logging.info(f'Processed step {s}')
           if s % num_batches_per_volume == 0:
+            vol = sess.run(average)
+
+            writer.write(encoder.encode(vol))
+            writer.flush()
             sess.run(resets)
 
-            writer.write(encoder.encode(sess.run(average)))
-
             tf.logging.info(f'Processed volume {s // num_batches_per_volume}')
+      except tf.errors.OutOfRangeError:
+        tf.logging.info('Iteration complete')
+      finally:
+        writer.close()
 
-      tf.logging.info(f'Completed rebuild')
+        tf.logging.info('Rebuilt complete')
 
 
 def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   hparams = tf.contrib.training.HParams(
-      sample_delta=4,
+      sample_delta=10,
       patch_shape=[32, 32, 32, 1],
       volume_shape=[240, 340, 360, 1],
       generator=model.gan.synthesis.generator_network)
