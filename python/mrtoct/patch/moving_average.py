@@ -85,6 +85,13 @@ class SparseMovingAverage:
   def average(self):
     """Returns tensor with volume."""
     if self._average is None:
-      raise RuntimeError('you need to call ".update" at least once before')
+      raise RuntimeError('you need to call ".update" at least once')
 
     return self._average
+
+  def initializer(self):
+    """Returns initializer op for variables."""
+    if not self._built:
+      raise RuntimeWarning('you need to call ".update" at least once')
+
+    return tf.variables_initializer([self._value, self._weight])

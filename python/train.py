@@ -16,7 +16,7 @@ def train(inputs_path, targets_path, log_path, params, batch_size, num_epochs):
     off = pshape[:3] // 2
     size = vshape[:3] - off
 
-    indices = patch.sample_uniform_3d(off, size, params.sample_num),
+    indices = patch.sample_uniform_3d(off, size, params.sample_num)
 
   with tf.name_scope('dataset'):
     options = ioutil.TFRecordOptions.get_compression_type_string(
@@ -66,7 +66,8 @@ def train(inputs_path, targets_path, log_path, params, batch_size, num_epochs):
   with tf.name_scope('iterator'):
     patch_iterator = patch_dataset.make_initializable_iterator()
 
-    input_patches, target_patches = patch_iterator.get_next()
+    with tf.control_dependencies([patch_iterator.initializer]):
+      input_patches, target_patches = patch_iterator.get_next()
 
   with tf.name_scope('model'):
     spec = model.create_generative_adversarial_network(
@@ -76,20 +77,20 @@ def train(inputs_path, targets_path, log_path, params, batch_size, num_epochs):
 
     output_patches = spec.outputs
 
-    deprocess = data.transform.UncenterMean()
+    def deprocess(x):
+      transform = data.transform.UncenterMean()
 
-    tf.summary.image('input', deprocess(input_patches[:, :, :, 0]), 1)
-    tf.summary.image('output', deprocess(output_patches[:, :, :, 0]), 1)
-    tf.summary.image('target', deprocess(target_patches[:, :, :, 0]), 1)
+      return tf.image.convert_image_dtype(transform(x[:, :, :, 0]),
+                                          dtype=tf.uint8)
 
-    scaffold = tf.train.Scaffold(init_op=tf.group(
-        tf.global_variables_initializer(), patch_iterator.initializer))
+    tf.summary.image('input', deprocess(input_patches), 1)
+    tf.summary.image('output', deprocess(output_patches), 1)
+    tf.summary.image('target', deprocess(target_patches), 1)
 
   tf.logging.info('finalized computation graph, starting training session')
 
   with tf.train.MonitoredTrainingSession(
           config=config,
-          scaffold=scaffold,
           checkpoint_dir=log_path,
           save_checkpoint_secs=600,
           save_summaries_secs=100) as sess:
