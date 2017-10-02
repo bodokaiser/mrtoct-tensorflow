@@ -16,78 +16,79 @@ def rebuild(input_path, chkpt_path, output_path, params, batch_size):
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
 
-  with tf.name_scope('shapes'):
-    vshape = tf.convert_to_tensor(params.volume_shape, name='volume_shape')
-    pshape = tf.convert_to_tensor(params.patch_shape, name='patch_shape')
+  with tf.device('/cpu:0'):
+    with tf.name_scope('shapes'):
+      vshape = tf.convert_to_tensor(params.volume_shape, name='volume_shape')
+      pshape = tf.convert_to_tensor(params.patch_shape, name='patch_shape')
 
-  with tf.name_scope('indices'):
-    off = pshape[:3] // 2
-    size = vshape[:3] - off
+    with tf.name_scope('indices'):
+      off = pshape[:3] // 2
+      size = vshape[:3] - off
 
-    indices = patch.sample_meshgrid_3d(off, size, params.sample_delta)
-    indices_len = tf.to_int64(tf.shape(indices)[0])
+      indices = patch.sample_meshgrid_3d(off, size, params.sample_delta)
+      indices_len = tf.to_int64(tf.shape(indices)[0])
 
-  with tf.name_scope('dataset'):
-    options = ioutil.TFRecordOptions.get_compression_type_string(
-        ioutil.TFRecordOptions)
+    with tf.name_scope('dataset'):
+      options = ioutil.TFRecordOptions.get_compression_type_string(
+          ioutil.TFRecordOptions)
 
-    volume_transform = data.transform.Compose([
-        data.transform.DecodeExample(),
-        data.transform.CastType(),
-        data.transform.Normalize(),
-        data.transform.CenterMean(),
-        data.transform.CenterPad(vshape),
-    ])
+      volume_transform = data.transform.Compose([
+          data.transform.DecodeExample(),
+          data.transform.CastType(),
+          data.transform.Normalize(),
+          data.transform.CenterMean(),
+          data.transform.CenterPad(vshape),
+      ])
 
-    with tf.name_scope('index'):
-      index_dataset = data.Dataset.from_tensor_slices(indices)
+      with tf.name_scope('index'):
+        index_dataset = data.Dataset.from_tensor_slices(indices)
 
-    with tf.name_scope('volume'):
-      volume_dataset = data.TFRecordDataset(
-          input_path, options).map(volume_transform).cache()
+      with tf.name_scope('volume'):
+        volume_dataset = data.TFRecordDataset(
+            input_path, options).map(volume_transform).cache()
 
-      patch_transform = data.transform.ExtractPatch(pshape)
+        patch_transform = data.transform.ExtractPatch(pshape)
 
-    def extract_patches(volume):
-      volume_dataset = (data.Dataset.from_tensors(volume)
-                        .repeat(indices_len))
+      def extract_patches(volume):
+        volume_dataset = (data.Dataset.from_tensors(volume)
+                          .repeat(indices_len))
 
-      return (data.Dataset
-              .zip((index_dataset, volume_dataset))
-              .map(patch_transform))
+        return (data.Dataset
+                .zip((index_dataset, volume_dataset))
+                .map(patch_transform))
 
-      return extract_patches
+        return extract_patches
 
-    def expand_index(index):
-      offset = pshape[:3] // 4
+      def expand_index(index):
+        offset = pshape[:3] // 4
 
-      return util.meshgrid_3d(index - offset, index + offset, 1)
+        return util.meshgrid_3d(index - offset, index + offset, 1)
 
-    with tf.name_scope('patch'):
-      patch_dataset = (data.Dataset
-                       .zip((index_dataset.map(expand_index),
-                             volume_dataset.flat_map(extract_patches)))
-                       .batch(batch_size))
+      with tf.name_scope('patch'):
+        patch_dataset = (data.Dataset
+                         .zip((index_dataset.map(expand_index),
+                               volume_dataset.flat_map(extract_patches)))
+                         .enumerate().batch(1))
 
-    with tf.name_scope('iterator'):
-      patch_iterator = patch_dataset.make_initializable_iterator()
+      with tf.name_scope('iterator'):
+        patch_iterator = patch_dataset.make_initializable_iterator()
 
-      with tf.control_dependencies([patch_iterator.initializer]):
-        p_indices, p_values = patch_iterator.get_next()
+        p_step, p_indices, p_values = patch_iterator.get_next()
 
-    with tf.name_scope('model'):
-      step = tf.assign_add(tf.train.get_or_create_global_step(), 1)
+    with tf.device('/gpu:0'):
+      with tf.name_scope('model'):
+        with tf.variable_scope('generator'):
+          outputs = params.generator(params)(p_values)
+          outputs = data.transform.UncenterMean()(outputs[:, :, :, :, 0])
 
-      with tf.variable_scope('generator'):
-        outputs = params.generator(params)(p_values)
-        outputs = data.transform.UncenterMean()(outputs[:, :, :, :, 0])
+    with tf.device('/cpu:0'):
+      with tf.name_scope('aggregator'):
+        sma = patch.SparseMovingAverage(params.volume_shape[:3], name='build')
 
-    with tf.name_scope('aggregator'):
-      sma = patch.SparseMovingAverage(params.volume_shape[:3], name='build')
-
-      update = sma.update(p_indices, outputs)
-      resets = sma.initializer()
-      average = tf.image.convert_image_dtype(sma.average(), tf.int32)
+        update = sma.update(p_indices, outputs)
+        resets = sma.initializer()
+        average = sma.average()
+        average32 = tf.image.convert_image_dtype(average, tf.int32)
 
     def optimistic_saver(save_file):
       reader = tf.train.NewCheckpointReader(save_file)
@@ -112,40 +113,45 @@ def rebuild(input_path, chkpt_path, output_path, params, batch_size):
     encoder = ioutil.TFRecordEncoder()
     options = ioutil.TFRecordOptions
 
-    step_zero = tf.assign(step, 0)
+    saver = optimistic_saver(chkpt_path)
+
+    summary_writer = tf.summary.FileWriter('foo', tf.get_default_graph())
+
+    tf.summary.histogram('average', average)
+    tf.summary.histogram('patches', outputs)
+
+    summary_op = tf.summary.merge_all()
+
+    record_writer = tf.python_io.TFRecordWriter(output_path, options)
 
     init = tf.group(tf.global_variables_initializer(),
                     tf.local_variables_initializer())
 
-    saver = optimistic_saver(chkpt_path)
-    writer = tf.python_io.TFRecordWriter(output_path, options)
-
     with tf.Session(config=config) as sess:
       sess.run(init)
-
       saver.restore(sess, chkpt_path)
-      sess.run(step_zero)
 
       num_batches_per_volume = sess.run(indices_len) // batch_size
 
       try:
         while True:
-          s, _ = sess.run([step, update])
+          s, _ = sess.run([p_step, update])
 
           if s % 100 == 0:
+            summary = sess.run(summary_op)
+
+            summary_writer.add_summary(summary, s)
+
             tf.logging.info(f'Processed step {s}')
           if s % num_batches_per_volume == 0:
-            vol = sess.run(average)
-
-            writer.write(encoder.encode(vol))
-            writer.flush()
+            record_writer.write(encoder.encode(sess.run(average32)))
             sess.run(resets)
 
             tf.logging.info(f'Processed volume {s // num_batches_per_volume}')
       except tf.errors.OutOfRangeError:
         tf.logging.info('Iteration complete')
       finally:
-        writer.close()
+        record_writer.close()
 
         tf.logging.info('Rebuilt complete')
 
