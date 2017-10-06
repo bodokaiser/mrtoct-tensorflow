@@ -34,7 +34,7 @@ Dense = tf.layers.Dense
 Dropout = tf.layers.Dropout
 BatchNorm = tf.layers.BatchNormalization
 MaxPool3D = tf.layers.MaxPooling3D
-Network = tf.layers.Network
+Network = tf.keras.models.Model
 
 Activation = tf.keras.layers.Activation
 LeakyReLU = tf.keras.layers.LeakyReLU

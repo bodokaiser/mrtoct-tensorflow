@@ -118,8 +118,8 @@ def main(args):
       sample_num=7000,
       patch_shape=[32, 32, 32, 1],
       volume_shape=[260, 340, 360, 1],
-      generator=model.gan.synthesis.generator_network,
-      discriminator=model.gan.synthesis.discriminator_network)
+      generator=model.gan.synthesis.generator,
+      discriminator=model.gan.synthesis.discriminator)
   hparams.parse(args.hparams)
 
   train(args.inputs_path, args.targets_path, args.log_path, hparams,
@@ -131,7 +131,7 @@ if __name__ == '__main__':
   parser.add_argument('--inputs-path', required=True)
   parser.add_argument('--targets-path', required=True)
   parser.add_argument('--log-path', default='results')
-  parser.add_argument('--num-epochs', type=int, default=None)
+  parser.add_argument('--num-epochs', type=int, default=30)
   parser.add_argument('--batch-size', type=int, default=10)
   parser.add_argument('--hparams', type=str, default='')
 

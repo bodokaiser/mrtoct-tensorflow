@@ -25,7 +25,7 @@ def create_generator(inputs, targets, mode, params):
   step_op = tf.train.get_or_create_global_step()
 
   with tf.variable_scope('generator') as scope:
-    outputs = params.generator(params)(inputs)
+    outputs = params.generator(inputs, params)
 
     if Mode.PREDICT == mode:
       return GeneratorSpec(inputs=inputs, targets=targets,
@@ -69,14 +69,15 @@ def create_generator(inputs, targets, mode, params):
 
 def create_discriminator(inputs, outputs, targets, mode, params):
   with tf.variable_scope('discriminator') as scope:
-    discriminator = params.discriminator(params)
+    discriminator = params.discriminator
 
     # TODO: support discriminator with one and more inputs
     #real_score = discriminator(tf.concat([inputs, targets], -1))
     #fake_score = discriminator(tf.concat([inputs, outputs], -1))
 
-    real_score = discriminator(targets)
-    fake_score = discriminator(outputs)
+    real_score = discriminator(targets, params)
+    scope.reuse_variables()
+    fake_score = discriminator(outputs, params)
 
     # tf.summary.image('real_score', tf.image.convert_image_dtype(
     #    real_score, tf.uint8), 1)

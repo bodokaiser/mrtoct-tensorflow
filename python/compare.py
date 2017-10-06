@@ -13,8 +13,8 @@ def compare(inputs, target, labels, steps):
     target: filename of HTML output file
     steps: distance between slices
   """
-  options = ioutil.TFRecordOptions.get_compression_type_string(
-      ioutil.TFRecordOptions)
+  options = ioutil.TFRecordOptions
+  cstring = options.get_compression_type_string(options)
 
   volume_transform = data.transform.Compose([
       data.transform.DecodeExample(),
@@ -24,14 +24,14 @@ def compare(inputs, target, labels, steps):
   slice_transform = data.transform.ExtractSlice()
 
   def slice_dataset(filename):
-    return (data.Dataset
-            .zip((data.Dataset.range(0, 100, steps),
-                  data.TFRecordDataset(filename, options)
-                      .map(volume_transform)
-                      .cache().repeat()))
+    return (tf.data.Dataset
+            .zip((tf.data.Dataset.range(0, 100, steps),
+                  tf.data.TFRecordDataset(filename, cstring)
+                  .map(volume_transform)
+                  .cache().repeat()))
             .map(slice_transform))
 
-  slices = (data.Dataset
+  slices = (tf.data.Dataset
             .zip(tuple(slice_dataset(f) for f in inputs))
             .make_one_shot_iterator().get_next())
 

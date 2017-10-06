@@ -7,7 +7,7 @@ from scipy import misc
 def decode(image):
   buff = io.BytesIO()
 
-  misc.toimage(image).save(buff, format='png')
+  misc.toimage(image[:, :, 0]).save(buff, format='png')
 
   return 'data:image/png;base64,' + base64.b64encode(buff.getvalue()).decode()
 
