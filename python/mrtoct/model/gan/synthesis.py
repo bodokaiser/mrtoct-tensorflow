@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from mrtoct.model import losses
+
 xavier_init = tf.contrib.layers.xavier_initializer
 
 
@@ -67,3 +69,19 @@ def discriminator_fn(x):
       x = _ddense(x, units=nu, activation=tf.nn.sigmoid if i == 2 else None)
 
   return x
+
+
+def generator_loss_fn(model):
+  mse = tf.losses.mean_squared_error(model.real_data, model.generator_data)
+  gdl = losses.gradient_difference_loss_3d(model.real_data,
+                                           model.generator_data)
+  nal = mse + gdl
+
+  return tf.contrib.gan.losses.combine_adversarial_loss(
+      gan_loss=tf.contrib.gan.losses.minimax_generator_loss,
+      gan_model=model,
+      non_adversarial_loss=nal,
+      weight_factor=0.5)
+
+
+discriminator_loss_fn = tf.contrib.gan.losses.minimax_discriminator_loss

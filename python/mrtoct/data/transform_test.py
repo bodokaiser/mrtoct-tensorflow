@@ -113,12 +113,12 @@ class TransformTest(tf.test.TestCase):
     y = x[4:7, 4:7, 4:7]
     z = x[4:6, 4:6, 4:6]
 
-    t1 = data.transform.ExtractPatch([3, 3, 3, 1])
-    t2 = data.transform.ExtractPatch([2, 2, 2, 1])
+    t1 = data.transform.ExtractPatch([3, 3, 3, 1], [5, 5, 5])
+    t2 = data.transform.ExtractPatch([2, 2, 2, 1], [5, 5, 5])
 
     with self.test_session():
-      a = t1([5, 5, 5], x).eval()
-      b = t2([5, 5, 5], x).eval()
+      a = t1(x).eval()
+      b = t2(x).eval()
 
       self.assertAllEqual(y, a)
       self.assertAllEqual(z, b)
