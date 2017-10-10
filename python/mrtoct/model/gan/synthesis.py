@@ -58,7 +58,7 @@ def generator_fn(x):
   return x
 
 
-def discriminator_fn(x):
+def discriminator_fn(x, y):
   """Creates a synthesis discriminator network."""
   for i, nf in enumerate([32, 64, 128, 256]):
     with tf.variable_scope(f'layer{i}'):
@@ -71,17 +71,24 @@ def discriminator_fn(x):
   return x
 
 
-def generator_loss_fn(model):
-  mse = tf.losses.mean_squared_error(model.real_data, model.generator_data)
+def generator_loss_fn(model, **kargs):
+  mse = tf.losses.mean_squared_error(model.real_data,
+                                     model.generated_data)
   gdl = losses.gradient_difference_loss_3d(model.real_data,
-                                           model.generator_data)
-  nal = mse + gdl
+                                           model.generated_data)
 
-  return tf.contrib.gan.losses.combine_adversarial_loss(
-      gan_loss=tf.contrib.gan.losses.minimax_generator_loss,
+  adv = tf.contrib.gan.GANLoss(
+      tf.contrib.gan.losses.minimax_generator_loss(model, **kargs),
+      tf.contrib.gan.losses.minimax_discriminator_loss(model, **kargs))
+
+  gan_loss = tf.contrib.gan.losses.combine_adversarial_loss(
+      gan_loss=adv,
       gan_model=model,
-      non_adversarial_loss=nal,
+      non_adversarial_loss=mse + gdl,
       weight_factor=0.5)
 
+  return gan_loss.generator_loss
 
-discriminator_loss_fn = tf.contrib.gan.losses.minimax_discriminator_loss
+
+def discriminator_loss_fn(model, **kargs):
+  return tf.contrib.gan.losses.minimax_discriminator_loss(model, **kargs)
