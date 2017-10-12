@@ -13,15 +13,19 @@ def generate(input_path, output_path, chkpt_path, params):
     chkpt_path: path to trained checkpoint files
     params: hyper params for model
   """
-  config = tf.ConfigProto(device_count={'GPU': 0})
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
 
   encoder = ioutil.TFRecordEncoder()
   options = ioutil.TFRecordOptions
   compstr = options.get_compression_type_string(options)
 
+  volume_shape = [260, 340, 360, 1]
+
   volume_transform = data.transform.Compose([
       data.transform.DecodeExample(),
       data.transform.Normalize(),
+      data.transform.CenterPad(volume_shape),
       data.transform.CenterMean(),
       data.transform.CastType(tf.float32),
   ])
@@ -30,7 +34,7 @@ def generate(input_path, output_path, chkpt_path, params):
 
   volume = volume_dataset.make_one_shot_iterator().get_next()
 
-  vshape = tf.shape(volume)
+  vshape = tf.convert_to_tensor(volume_shape)
   pshape = tf.convert_to_tensor(params.patch_shape)
 
   indices = p.sample_meshgrid_3d(
@@ -59,12 +63,19 @@ def generate(input_path, output_path, chkpt_path, params):
     update2 = tf.to_float(tf.scatter_nd(
         index, tf.to_float(patch_out > -1), vshape))
 
-    return i + 1, values + update1, weights + update2
+    values += update1
+    weights += update2
+
+    values.set_shape(volume_shape)
+    weights.set_shape(volume_shape)
+
+    return i + 1, values, weights
 
   _, values, weights = tf.while_loop(
       cond, body, [0,
-                   tf.zeros_like(volume, tf.float32),
-                   tf.zeros_like(volume, tf.float32)], back_prop=False)
+                   tf.zeros(volume_shape[:3], tf.float32),
+                   tf.zeros(volume_shape[:3], tf.float32)],
+      back_prop=False)
 
   final_transform = data.transform.Compose([
       data.transform.UncenterMean(),

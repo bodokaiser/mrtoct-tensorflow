@@ -26,8 +26,8 @@ def train(inputs_path, targets_path, log_path, params, batch_size, num_epochs):
         data.transform.DecodeExample(),
         data.transform.CastType(),
         data.transform.Normalize(),
-        data.transform.CenterMean(),
         data.transform.CenterPad(vshape),
+        data.transform.CenterMean(),
     ])
 
     with tf.name_scope('index'):
