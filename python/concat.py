@@ -16,7 +16,15 @@ def concat(input_paths, output_path):
 
   ctype = options.get_compression_type_string(options)
 
-  transform = data.transform.DecodeExample()
+  transform = data.transform.Compose([
+      data.transform.DecodeExample(),
+      data.transform.CastType(),
+      data.transform.Normalize(),
+      lambda x: tf.where(tf.equal(x, x[0, 0, 0, 0]),
+                         tf.zeros_like(x, tf.float32), x),
+      data.transform.CenterPad([260, 340, 360, 1]),
+      lambda x: tf.image.convert_image_dtype(x, tf.int32),
+  ])
 
   datasets = [data.TFRecordDataset(f, ctype).map(transform)
               for f in input_paths]
