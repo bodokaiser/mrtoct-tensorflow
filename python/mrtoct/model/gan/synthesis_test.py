@@ -23,7 +23,8 @@ class SynthesisGANTest(tf.test.TestCase):
 
   def test_discriminator_fn(self):
     x = tf.ones([10, 32, 32, 32, 1])
-    y = model.synthesis.discriminator_fn(x)
+
+    model.synthesis.discriminator_fn(x)
 
 
 if __name__ == '__main__':
