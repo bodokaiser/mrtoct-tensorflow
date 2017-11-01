@@ -38,7 +38,7 @@ def discriminator_conv(x, filters):
   x = tf.layers.batch_normalization(x)
   x = tf.nn.relu(x)
   x = tf.layers.max_pooling3d(inputs=x,
-                              kernel_size=3,
+                              pool_size=3,
                               strides=1)
 
   return x
