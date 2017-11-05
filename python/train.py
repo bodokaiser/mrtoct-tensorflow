@@ -21,7 +21,8 @@ def train(inputs_path, targets_path, checkpoint_path, params):
     return model.train_slice_input_fn(
         inputs_path=inputs_path,
         targets_path=targets_path,
-        slice_shape=params.slice_shape,
+        slice_height=params.slice_height,
+        slice_width=params.slice_width,
         batch_size=params.batch_size)
 
   estimator.train(input_fn)
@@ -32,7 +33,8 @@ def main(args):
 
   hparams = tf.contrib.training.HParams(
       batch_size=10,
-      slice_shape=[384, 384])
+      slice_height=384,
+      slice_width=384)
   hparams.parse(args.hparams)
 
   train(inputs_path=args.inputs_path,

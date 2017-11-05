@@ -7,28 +7,34 @@ compression = ioutil.TFRecordOptions.get_compression_type_string(
     ioutil.TFRecordOptions)
 
 
-def train_slice_input_fn(inputs_path, targets_path, slice_shape, batch_size):
-  transform1 = data.transform.Compose([
+def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
+                         batch_size):
+  pre_transform = data.transform.Compose([
       data.transform.DecodeExample(),
-      data.transform.CastType(),
       data.transform.Normalize(),
       data.transform.CenterMean(),
   ])
-  transform2 = data.transform.Compose([
-      lambda x: tf.image.resize_image_with_crop_or_pad(x, *slice_shape),
-      lambda x: tf.reshape(x, slice_shape),
-      lambda x: tf.expand_dims(x, -1),
+  post_transform = data.transform.Compose([
+      data.transform.CropOrPad2D(slice_height, slice_width),
+      data.transform.ExpandDims(),
   ])
 
-  inputs_dataset = tf.data.TFRecordDataset(
-      inputs_path, compression).map(transform1).apply(
-      tf.contrib.data.unbatch()).map(transform2).cache()
-  targets_dataset = tf.data.TFRecordDataset(
-      targets_path, compression).map(transform1).apply(
-      tf.contrib.data.unbatch()).map(transform2).cache()
+  inputs_dataset = (tf.data.TFRecordDataset(inputs_path, compression)
+                    .map(pre_transform)
+                    .apply(tf.contrib.data.unbatch())
+                    .map(post_transform)
+                    .cache())
 
-  dataset = tf.data.Dataset.zip(
-      (inputs_dataset, targets_dataset)).batch(batch_size).repeat()
+  targets_dataset = (tf.data.TFRecordDataset(targets_path, compression)
+                     .map(pre_transform)
+                     .apply(tf.contrib.data.unbatch())
+                     .map(post_transform)
+                     .cache())
+
+  dataset = (tf.data.Dataset
+             .zip((inputs_dataset, targets_dataset))
+             .batch(batch_size)
+             .repeat())
 
   return dataset.make_one_shot_iterator().get_next()
 

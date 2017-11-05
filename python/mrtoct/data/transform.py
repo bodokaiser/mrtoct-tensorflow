@@ -21,17 +21,6 @@ class Compose:
       return args
 
 
-class CastType:
-  """Casts input to given type."""
-
-  def __init__(self, dtype=tf.float32):
-    self.dtype = dtype
-
-  def __call__(self, x):
-    with tf.name_scope('cast_type'):
-      return tf.cast(x, self.dtype)
-
-
 class ExpandDims:
   """Expands input at given axis."""
 
@@ -43,48 +32,12 @@ class ExpandDims:
       return tf.expand_dims(x, self.axis)
 
 
-class CenterPad:
-  """Pads input symmetric to `shape`."""
-
-  def __init__(self, shape):
-    self.shape = shape
-
-  def __call__(self, x):
-    with tf.name_scope('center_pad'):
-      target_shape = tf.convert_to_tensor(self.shape, name='target_shape')
-      input_shape = tf.shape(x, name='input_shape')
-
-      # TODO: check explicit if tensor shapes are compatible
-      ndims = target_shape.shape.num_elements()
-
-      paddings = []
-
-      for i in range(ndims):
-        offset = (target_shape[i] - input_shape[i]) / 2
-
-        paddings.append(tf.stack([tf.floor(offset), tf.ceil(offset)]))
-
-      return tf.pad(x, tf.to_int32(tf.stack(paddings)))
-
-
-class CenterCrop:
-  """Crops input symmetric to `shape`."""
-
-  def __init__(self, shape):
-    self.shape = shape
-
-  def __call__(self, x):
-    with tf.name_scope('center_crop'):
-      off = tf.subtract(tf.shape(x), self.shape) // 2
-
-      return tf.slice(x, off, self.shape)
-
-
 class Normalize:
   """Normalizes input to [0,1]."""
 
   def __call__(self, x):
     with tf.name_scope('normalize'):
+      x = tf.to_float(x)
       x -= tf.reduce_min(x)
       x /= tf.reduce_max(x)
 
@@ -118,21 +71,19 @@ class DecodeExample:
       return self.decoder.decode(x)
 
 
-class ExtractSlice:
-  """Extracts a slice from `axis` at `index` from input."""
+class CropOrPad2D:
+  """Resizes image by crop or pad."""
 
-  def __init__(self, axis=0):
-    self.axis = axis
+  def __init__(self, height, width):
+    self.height = height
+    self.width = width
 
-  def __call__(self, index, x):
-    if self.axis == 0:
-      return x[index]
-    if self.axis == 1:
-      return x[:, index]
-    if self.axis == 2:
-      return x[:, :, index]
+  def __call__(self, x):
+    with tf.name_scope('crop_or_pad_2d'):
+      x = tf.image.resize_image_with_crop_or_pad(x, self.height, self.width)
+      x = tf.reshape(x, [self.height, self.width])
 
-    raise ValueError(f'axis should be 0, 1, 2 not {self.axis}')
+      return x
 
 
 class ExtractPatch:
