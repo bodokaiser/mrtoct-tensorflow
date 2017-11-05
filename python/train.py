@@ -10,18 +10,18 @@ def train(inputs_path, targets_path, checkpoint_path, params):
 
   estimator = tf.contrib.gan.estimator.GANEstimator(
       model_dir=checkpoint_path,
-      generator_fn=model.gan.pixtopix.generator_fn,
-      discriminator_fn=model.gan.pixtopix.discriminator_fn,
-      generator_loss_fn=model.gan.pixtopix.generator_loss_fn,
-      discriminator_loss_fn=model.gan.pixtopix.discriminator_loss_fn,
-      generator_optimizer=model.gan.pixtopix.optimizer_fn(),
-      discriminator_optimizer=model.gan.pixtopix.optimizer_fn())
+      generator_fn=model.pixtopix.generator_fn,
+      discriminator_fn=model.pixtopix.discriminator_fn,
+      generator_loss_fn=model.pixtopix.generator_loss_fn,
+      discriminator_loss_fn=model.pixtopix.discriminator_loss_fn,
+      generator_optimizer=model.pixtopix.optimizer_fn(),
+      discriminator_optimizer=model.pixtopix.optimizer_fn())
 
   def input_fn():
     return model.train_slice_input_fn(
         inputs_path=inputs_path,
         targets_path=targets_path,
-        inputs_shape=params.slice_shape,
+        slice_shape=params.slice_shape,
         batch_size=params.batch_size)
 
   estimator.train(input_fn)
@@ -32,9 +32,7 @@ def main(args):
 
   hparams = tf.contrib.training.HParams(
       batch_size=10,
-      learn_rate=2e-4,
-      beta1_rate=5e-1,
-      slice_shape=[340, 360])
+      slice_shape=[384, 384])
   hparams.parse(args.hparams)
 
   train(inputs_path=args.inputs_path,
@@ -44,7 +42,9 @@ def main(args):
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser('train', description='''
+    Trains model on tfrecords and saves checkpoints with events.
+  ''')
   parser.add_argument('--inputs-path', required=True)
   parser.add_argument('--targets-path', required=True)
   parser.add_argument('--checkpoint-path', default='results')

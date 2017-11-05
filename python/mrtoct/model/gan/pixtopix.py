@@ -72,7 +72,7 @@ def optimizer_fn():
 
 
 def generator_loss_fn(model, **kargs):
-  mae = tf.losses.mean_absolute_error(model.real_data,
+  mae = tf.losses.absolute_difference(model.real_data,
                                       model.generated_data)
 
   adv = tf.contrib.gan.GANLoss(

@@ -8,18 +8,24 @@ compression = ioutil.TFRecordOptions.get_compression_type_string(
 
 
 def train_slice_input_fn(inputs_path, targets_path, slice_shape, batch_size):
-  transform = data.transform.Compose([
+  transform1 = data.transform.Compose([
       data.transform.DecodeExample(),
       data.transform.CastType(),
       data.transform.Normalize(),
       data.transform.CenterMean(),
-      data.transform.CenterPad(slice_shape),
+  ])
+  transform2 = data.transform.Compose([
+      lambda x: tf.image.resize_image_with_crop_or_pad(x, *slice_shape),
+      lambda x: tf.reshape(x, slice_shape),
+      lambda x: tf.expand_dims(x, -1),
   ])
 
   inputs_dataset = tf.data.TFRecordDataset(
-      inputs_path, compression).map(transform).cache()
+      inputs_path, compression).map(transform1).apply(
+      tf.contrib.data.unbatch()).map(transform2).cache()
   targets_dataset = tf.data.TFRecordDataset(
-      targets_path, compression).map(transform).cache()
+      targets_path, compression).map(transform1).apply(
+      tf.contrib.data.unbatch()).map(transform2).cache()
 
   dataset = tf.data.Dataset.zip(
       (inputs_dataset, targets_dataset)).batch(batch_size).repeat()

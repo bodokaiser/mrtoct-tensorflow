@@ -6,8 +6,8 @@ from mrtoct import model
 class PixToPixGANTest(tf.test.TestCase):
 
   def test_generator_fn(self):
-    x = tf.ones([10, 128, 128, 2])
-    y = model.synthesis.generator_fn(x)
+    x = tf.ones([10, 128, 128, 1])
+    y = model.pixtopix.generator_fn(x)
 
     self.assertAllEqual(x.shape, y.shape)
 

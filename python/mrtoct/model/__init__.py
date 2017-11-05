@@ -1,3 +1,3 @@
-from mrtoct.model import gan
+from mrtoct.model.gan import pixtopix, synthesis
 
-from mrtoct.model.inputs import train_patch_input_fn
+from mrtoct.model.inputs import train_patch_input_fn, train_slice_input_fn
