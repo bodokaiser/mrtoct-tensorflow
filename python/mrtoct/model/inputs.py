@@ -12,10 +12,10 @@ def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
   pre_transform = data.transform.Compose([
       data.transform.DecodeExample(),
       data.transform.Normalize(),
-      data.transform.CenterMean(),
   ])
   post_transform = data.transform.Compose([
       data.transform.CropOrPad2D(slice_height, slice_width),
+      data.transform.CenterMean(),
       data.transform.ExpandDims(),
   ])
 

@@ -47,7 +47,12 @@ def generator_fn(x):
     dec1 = unet.decode(tf.concat([dec2, enc1], -1), 64)
 
   with tf.variable_scope('final'):
-    return _gfinal(dec1)
+    y = _gfinal(dec1)
+
+  tf.summary.image('real', x, max_outputs=1)
+  tf.summary.image('fake', y, max_outputs=1)
+
+  return y
 
 
 def discriminator_fn(y, z):
@@ -72,8 +77,7 @@ def optimizer_fn():
 
 
 def generator_loss_fn(model, **kargs):
-  mae = tf.losses.absolute_difference(model.real_data,
-                                      model.generated_data)
+  mae = tf.losses.absolute_difference(model.real_data, model.generated_data)
 
   adv = tf.contrib.gan.GANLoss(
       tf.contrib.gan.losses.minimax_generator_loss(model, **kargs),

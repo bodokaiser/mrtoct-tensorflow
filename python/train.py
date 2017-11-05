@@ -33,8 +33,8 @@ def main(args):
 
   hparams = tf.contrib.training.HParams(
       batch_size=10,
-      slice_height=384,
-      slice_width=384)
+      slice_height=288,
+      slice_width=288)
   hparams.parse(args.hparams)
 
   train(inputs_path=args.inputs_path,
