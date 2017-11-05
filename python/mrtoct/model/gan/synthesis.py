@@ -6,19 +6,14 @@ xavier_init = tf.contrib.layers.xavier_initializer
 
 
 def _gconv(x, kernel_size, filters, padding, activation=tf.nn.relu):
-  """Creates a synthesis generator conv layer."""
-  x = tf.layers.conv3d(inputs=x,
-                       filters=filters,
-                       kernel_size=kernel_size,
-                       padding=padding,
+  x = tf.layers.conv3d(x, filters, kernel_size, padding,
                        kernel_initializer=xavier_init())
-  x = tf.layers.batch_normalization(inputs=x)
+  x = tf.layers.batch_normalization(x)
 
   return activation(x)
 
 
 def _dconv(x, filters, kernel_size=5, padding='same'):
-  """Creates a synthesis discriminator conv layer."""
   x = tf.layers.conv3d(inputs=x,
                        filters=filters,
                        kernel_size=kernel_size,
@@ -32,7 +27,6 @@ def _dconv(x, filters, kernel_size=5, padding='same'):
 
 
 def _ddense(x, units, activation=None):
-  """Creates a synthesis discriminator dense layer."""
   x = tf.layers.dense(x, units=units)
 
   if activation is not None:
@@ -42,7 +36,6 @@ def _ddense(x, units, activation=None):
 
 
 def generator_fn(x):
-  """Creates a synthesis generator network."""
   for i, ks in enumerate([9, 3, 3, 3, 9, 3, 3, 7, 3]):
     with tf.variable_scope(f'conv{i}'):
       x = _gconv(x, kernel_size=ks,
@@ -59,7 +52,6 @@ def generator_fn(x):
 
 
 def discriminator_fn(x, y):
-  """Creates a synthesis discriminator network."""
   for i, nf in enumerate([32, 64, 128, 256]):
     with tf.variable_scope(f'layer{i}'):
       x = _dconv(x, filters=nf)

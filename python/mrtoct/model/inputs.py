@@ -7,13 +7,28 @@ compression = ioutil.TFRecordOptions.get_compression_type_string(
     ioutil.TFRecordOptions)
 
 
-def train_patch_input_fn(inputs_path,
-                         targets_path,
-                         volume_shape,
-                         inputs_shape,
-                         targets_shape,
-                         batch_size):
+def train_slice_input_fn(inputs_path, targets_path, slice_shape, batch_size):
+  transform = data.transform.Compose([
+      data.transform.DecodeExample(),
+      data.transform.CastType(),
+      data.transform.Normalize(),
+      data.transform.CenterMean(),
+      data.transform.CenterPad(slice_shape),
+  ])
 
+  inputs_dataset = tf.data.TFRecordDataset(
+      inputs_path, compression).map(transform).cache()
+  targets_dataset = tf.data.TFRecordDataset(
+      targets_path, compression).map(transform).cache()
+
+  dataset = tf.data.Dataset.zip(
+      (inputs_dataset, targets_dataset)).batch(batch_size).repeat()
+
+  return dataset.make_one_shot_iterator().get_next()
+
+
+def train_patch_input_fn(inputs_path, targets_path, volume_shape, inputs_shape,
+                         targets_shape, batch_size):
   with tf.name_scope('sample'):
     offset = tf.convert_to_tensor(inputs_shape[:3]) // 2
     length = tf.convert_to_tensor(volume_shape[:3]) - offset
