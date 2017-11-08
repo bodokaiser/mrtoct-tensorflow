@@ -22,14 +22,12 @@ def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
   inputs_dataset = (tf.data.TFRecordDataset(inputs_path, compression)
                     .map(pre_transform)
                     .apply(tf.contrib.data.unbatch())
-                    .map(post_transform)
-                    .cache())
+                    .map(post_transform))
 
   targets_dataset = (tf.data.TFRecordDataset(targets_path, compression)
                      .map(pre_transform)
                      .apply(tf.contrib.data.unbatch())
-                     .map(post_transform)
-                     .cache())
+                     .map(post_transform))
 
   dataset = (tf.data.Dataset
              .zip((inputs_dataset, targets_dataset))
