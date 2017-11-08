@@ -9,6 +9,8 @@ def train(inputs_path, targets_path, checkpoint_path, params):
   config.gpu_options.allow_growth = True
 
   estimator = tf.contrib.gan.estimator.GANEstimator(
+      add_summaries=None,
+      use_loss_summaries=False,
       model_dir=checkpoint_path,
       generator_fn=model.pixtopix.generator_fn,
       discriminator_fn=model.pixtopix.discriminator_fn,
@@ -32,7 +34,7 @@ def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   hparams = tf.contrib.training.HParams(
-      batch_size=32,
+      batch_size=16,
       slice_height=384,
       slice_width=384)
   hparams.parse(args.hparams)

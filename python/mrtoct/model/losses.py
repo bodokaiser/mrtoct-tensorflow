@@ -5,6 +5,11 @@ from mrtoct import util
 mse = tf.losses.mean_squared_error
 
 
+def gradient_difference_loss_2d(targets, outputs):
+  with tf.name_scope('gradient_difference_loss_2d'):
+    return tf.reduce_sum(tf.image.total_variation(targets - outputs))
+
+
 def gradient_difference_loss_3d(targets, outputs):
   with tf.name_scope('gradient_difference_loss_3d'):
     grad1 = util.spatial_gradient_3d(targets)
