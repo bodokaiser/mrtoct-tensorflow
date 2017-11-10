@@ -8,6 +8,7 @@ def train(inputs_path, targets_path, checkpoint_path, params):
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
 
+  '''
   estimator = tf.contrib.gan.estimator.GANEstimator(
       add_summaries=None,
       use_loss_summaries=False,
@@ -18,14 +19,21 @@ def train(inputs_path, targets_path, checkpoint_path, params):
       discriminator_loss_fn=model.pixtopix.discriminator_loss_fn,
       generator_optimizer=tf.train.AdamOptimizer(params.lr, params.beta1),
       discriminator_optimizer=tf.train.AdamOptimizer(params.lr, params.beta1))
+  '''
+
+  estimator = tf.estimator.Estimator(
+      model_fn=model.model_fn,
+      model_dir=checkpoint_path,
+      params=params)
 
   def input_fn():
-    return model.train_slice_input_fn(
+    inputs, targets = model.train_slice_input_fn(
         inputs_path=inputs_path,
         targets_path=targets_path,
         slice_height=params.slice_height,
         slice_width=params.slice_width,
         batch_size=params.batch_size)
+    return {'inputs': inputs}, {'targets': targets}
 
   estimator.train(input_fn)
 
@@ -38,7 +46,8 @@ def main(args):
       beta1=5e-1,
       batch_size=16,
       slice_height=384,
-      slice_width=384)
+      slice_width=384,
+      generator_fn=model.unet.generator_fn)
   hparams.parse(args.hparams)
 
   train(inputs_path=args.inputs_path,

@@ -17,6 +17,8 @@ def _int64_feature(value):
 Options = tf.python_io.TFRecordOptions(
     tf.python_io.TFRecordCompressionType.GZIP)
 
+CString = Options.get_compression_type_string(Options)
+
 
 class Encoder:
   """Encodes a numpy volume array as tfrecord."""

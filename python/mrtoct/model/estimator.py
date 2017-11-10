@@ -3,8 +3,31 @@ import tensorflow as tf
 from mrtoct import data, patch, ioutil
 
 
-compression = ioutil.TFRecordOptions.get_compression_type_string(
-    ioutil.TFRecordOptions)
+def model_fn(features, labels, mode, params):
+  inputs = features['inputs']
+  targets = labels['targets']
+
+  outputs = params.generator_fn(inputs)
+
+  if tf.estimator.ModeKeys.PREDICT == mode:
+    return tf.estimator.EstimatorSpec(mode, {'outputs': outputs})
+
+  mse = tf.losses.mean_squared_error(targets, outputs)
+  mae = tf.losses.absolute_difference(targets, outputs)
+
+  loss = mae
+
+  tf.summary.scalar('mean_squared_error', mse)
+  tf.summary.scalar('mean_absolute_error', mae)
+  tf.summary.scalar('total_loss', loss)
+
+  if tf.estimator.ModeKeys.EVAL == mode:
+    return tf.estimator.EstimatorSpec(mode, {'outputs': outputs}, loss)
+
+  train = tf.train.AdamOptimizer(params.lr, params.beta1).minimize(
+      loss, tf.train.get_global_step())
+
+  return tf.estimator.EstimatorSpec(mode, {'outputs': outputs}, loss, train)
 
 
 def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
@@ -19,12 +42,14 @@ def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
       data.transform.ExpandDims(),
   ])
 
-  inputs_dataset = (tf.data.TFRecordDataset(inputs_path, compression)
+  inputs_dataset = (tf.data
+                    .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
                     .map(pre_transform)
                     .apply(tf.contrib.data.unbatch())
                     .map(post_transform))
 
-  targets_dataset = (tf.data.TFRecordDataset(targets_path, compression)
+  targets_dataset = (tf.data
+                     .TFRecordDataset(targets_path, ioutil.TFRecordCString)
                      .map(pre_transform)
                      .apply(tf.contrib.data.unbatch())
                      .map(post_transform))
@@ -55,9 +80,9 @@ def train_patch_input_fn(inputs_path, targets_path, volume_shape, inputs_shape,
     ])
 
     inputs_volume_dataset = tf.data.TFRecordDataset(
-        inputs_path, compression).map(volume_transform).cache()
+        inputs_path, ioutil.TFRecordCString).map(volume_transform).cache()
     targets_volume_dataset = tf.data.TFRecordDataset(
-        targets_path, compression).map(volume_transform).cache()
+        targets_path, ioutil.TFRecordCString).map(volume_transform).cache()
 
   with tf.name_scope('patch'):
     inputs_transform = data.transform.ExtractPatch(inputs_shape, index)

@@ -18,41 +18,6 @@ def _dfinal(x):
   return tf.nn.sigmoid(x)
 
 
-def _gfinal(x):
-  x = tf.layers.conv2d_transpose(x, 1, 3, 1, 'same',
-                                 kernel_initializer=xavier_init())
-  return tf.nn.tanh(x)
-
-
-def generator_fn(x):
-  with tf.variable_scope('encode1'):
-    enc1 = unet.encode(x, 64, batch_norm=False)
-  with tf.variable_scope('encode2'):
-    enc2 = unet.encode(enc1, 128)
-  with tf.variable_scope('encode3'):
-    enc3 = unet.encode(enc2, 256)
-  with tf.variable_scope('encode4'):
-    enc4 = unet.encode(enc3, 512)
-  with tf.variable_scope('encode5'):
-    enc5 = unet.encode(enc4, 512)
-
-  with tf.variable_scope('decode5'):
-    dec5 = unet.decode(enc5, 512, dropout=True)
-  with tf.variable_scope('decode4'):
-    dec4 = unet.decode(tf.concat([dec5, enc4], -1), 512, dropout=True)
-  with tf.variable_scope('decode3'):
-    dec3 = unet.decode(tf.concat([dec4, enc3], -1), 256)
-  with tf.variable_scope('decode2'):
-    dec2 = unet.decode(tf.concat([dec3, enc2], -1), 128)
-  with tf.variable_scope('decode1'):
-    dec1 = unet.decode(tf.concat([dec2, enc1], -1), 64)
-
-  with tf.variable_scope('final'):
-    y = _gfinal(dec1)
-
-  return y
-
-
 def discriminator_fn(y, z):
   x = tf.concat([y, z], -1)
 
@@ -68,6 +33,9 @@ def discriminator_fn(y, z):
     x = _dfinal(x)
 
   return x
+
+
+generator_fn = unet.generator_fn
 
 
 def generator_loss_fn(model, **kargs):
