@@ -4,10 +4,12 @@ from mrtoct import data, patch, ioutil
 
 
 def model_fn(features, labels, mode, params):
-  inputs = features['inputs']
-  targets = labels['targets']
-
+  inputs, targets = features['inputs'], labels['targets']
   outputs = params.generator_fn(inputs)
+
+  tf.summary.image('inputs', inputs, max_outputs=1)
+  tf.summary.image('outputs', outputs, max_outputs=1)
+  tf.summary.image('targets', targets, max_outputs=1)
 
   if tf.estimator.ModeKeys.PREDICT == mode:
     return tf.estimator.EstimatorSpec(mode, {'outputs': outputs})
@@ -15,17 +17,22 @@ def model_fn(features, labels, mode, params):
   mse = tf.losses.mean_squared_error(targets, outputs)
   mae = tf.losses.absolute_difference(targets, outputs)
 
-  loss = mae
-
   tf.summary.scalar('mean_squared_error', mse)
   tf.summary.scalar('mean_absolute_error', mae)
+
+  loss = mae
+
   tf.summary.scalar('total_loss', loss)
 
   if tf.estimator.ModeKeys.EVAL == mode:
     return tf.estimator.EstimatorSpec(mode, {'outputs': outputs}, loss)
 
-  train = tf.train.AdamOptimizer(params.lr, params.beta1).minimize(
-      loss, tf.train.get_global_step())
+  optimizer = tf.train.AdamOptimizer(params.lr, params.beta1)
+  gradients = optimizer.compute_gradients(loss)
+
+  tf.summary.scalar('gradient', tf.global_norm(gradients))
+
+  train = optimizer.apply_gradients(gradients, tf.train.get_global_step())
 
   return tf.estimator.EstimatorSpec(mode, {'outputs': outputs}, loss, train)
 
