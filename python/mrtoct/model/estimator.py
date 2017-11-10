@@ -10,6 +10,7 @@ def model_fn(features, labels, mode, params):
   tf.summary.image('inputs', inputs, max_outputs=1)
   tf.summary.image('outputs', outputs, max_outputs=1)
   tf.summary.image('targets', targets, max_outputs=1)
+  tf.summary.image('residue', targets - outputs, max_outputs=1)
 
   if tf.estimator.ModeKeys.PREDICT == mode:
     return tf.estimator.EstimatorSpec(mode, {'outputs': outputs})
@@ -20,21 +21,28 @@ def model_fn(features, labels, mode, params):
   tf.summary.scalar('mean_squared_error', mse)
   tf.summary.scalar('mean_absolute_error', mae)
 
-  loss = mae
+  loss = mae + mse
 
   tf.summary.scalar('total_loss', loss)
 
+  vars = tf.trainable_variables()
+
+  mse_grad = tf.global_norm(tf.gradients(mse, vars))
+  mae_grad = tf.global_norm(tf.gradients(mae, vars))
+
+  tf.summary.scalar('mean_squared_error_gradient', mse_grad)
+  tf.summary.scalar('mean_absolute_error_gradient', mae_grad)
+
   if tf.estimator.ModeKeys.EVAL == mode:
-    return tf.estimator.EstimatorSpec(mode, {'outputs': outputs}, loss)
+    return tf.estimator.EstimatorSpec(
+        mode, {'outputs': outputs}, loss)
 
   optimizer = tf.train.AdamOptimizer(params.lr, params.beta1)
-  gradients = optimizer.compute_gradients(loss)
 
-  tf.summary.scalar('gradient', tf.global_norm(gradients))
+  train = optimizer.minimize(loss, tf.train.get_global_step())
 
-  train = optimizer.apply_gradients(gradients, tf.train.get_global_step())
-
-  return tf.estimator.EstimatorSpec(mode, {'outputs': outputs}, loss, train)
+  return tf.estimator.EstimatorSpec(
+      mode, {'outputs': outputs}, loss, train)
 
 
 def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
@@ -45,7 +53,7 @@ def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
   ])
   post_transform = data.transform.Compose([
       data.transform.CropOrPad2D(slice_height, slice_width),
-      data.transform.CenterMean(),
+      # data.transform.CenterMean(),
       data.transform.ExpandDims(),
   ])
 
