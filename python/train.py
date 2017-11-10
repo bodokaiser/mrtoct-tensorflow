@@ -16,8 +16,8 @@ def train(inputs_path, targets_path, checkpoint_path, params):
       discriminator_fn=model.pixtopix.discriminator_fn,
       generator_loss_fn=model.pixtopix.generator_loss_fn,
       discriminator_loss_fn=model.pixtopix.discriminator_loss_fn,
-      generator_optimizer=model.pixtopix.optimizer_fn(),
-      discriminator_optimizer=model.pixtopix.optimizer_fn())
+      generator_optimizer=tf.train.AdamOptimizer(params.lr, params.beta1),
+      discriminator_optimizer=tf.train.AdamOptimizer(params.lr, params.beta1))
 
   def input_fn():
     return model.train_slice_input_fn(
@@ -34,6 +34,8 @@ def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   hparams = tf.contrib.training.HParams(
+      lr=2e-4,
+      beta1=5e-1,
       batch_size=16,
       slice_height=384,
       slice_width=384)

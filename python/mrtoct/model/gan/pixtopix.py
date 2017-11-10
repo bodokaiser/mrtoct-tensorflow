@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from mrtoct.model import losses, metrics
+from mrtoct.model import losses
 from mrtoct.model.cnn import unet
 
 xavier_init = tf.contrib.layers.xavier_initializer
@@ -70,10 +70,6 @@ def discriminator_fn(y, z):
   return x
 
 
-def optimizer_fn():
-  return tf.train.AdamOptimizer(2e-4, 5e-1)
-
-
 def generator_loss_fn(model, **kargs):
   inputs = model.generator_inputs
   outputs = model.generated_data
@@ -97,12 +93,6 @@ def generator_loss_fn(model, **kargs):
   tf.summary.scalar('mean_absolute_error', mae)
   tf.summary.scalar('mean_squared_error', mse)
   tf.summary.scalar('gradient_difference_loss', gdl)
-
-  psnr = metrics.peak_signal_to_noise_ratio(targets, outputs)
-  #ssim = metrics.structural_similarity_index(targets, outputs)
-
-  tf.summary.scalar('psnr', psnr)
-  #tf.summary.scalar('ssim', ssim)
 
   adv = tf.contrib.gan.GANLoss(
       tf.contrib.gan.losses.minimax_generator_loss(model, **kargs),
