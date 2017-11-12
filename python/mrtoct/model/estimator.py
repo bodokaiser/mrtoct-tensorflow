@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from mrtoct import data, patch, ioutil
+from mrtoct.model import losses
 
 
 def model_fn(features, labels, mode, params):
@@ -17,20 +18,22 @@ def model_fn(features, labels, mode, params):
 
   mse = tf.losses.mean_squared_error(targets, outputs)
   mae = tf.losses.absolute_difference(targets, outputs)
+  gdl = losses.gradient_difference_loss_2d(targets, outputs)
 
   tf.summary.scalar('mean_squared_error', mse)
   tf.summary.scalar('mean_absolute_error', mae)
+  tf.summary.scalar('gradient_difference_loss', gdl)
 
-  loss = mae + mse
+  loss = 3 * mae + gdl
 
   tf.summary.scalar('total_loss', loss)
 
   vars = tf.trainable_variables()
 
-  mse_grad = tf.global_norm(tf.gradients(mse, vars))
+  gdl_grad = tf.global_norm(tf.gradients(gdl, vars))
   mae_grad = tf.global_norm(tf.gradients(mae, vars))
 
-  tf.summary.scalar('mean_squared_error_gradient', mse_grad)
+  tf.summary.scalar('gradient_difference_loss_gradient', gdl_grad)
   tf.summary.scalar('mean_absolute_error_gradient', mae_grad)
 
   if tf.estimator.ModeKeys.EVAL == mode:
@@ -53,7 +56,6 @@ def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
   ])
   post_transform = data.transform.Compose([
       data.transform.CropOrPad2D(slice_height, slice_width),
-      # data.transform.CenterMean(),
       data.transform.ExpandDims(),
   ])
 
