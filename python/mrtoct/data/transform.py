@@ -86,6 +86,17 @@ class CropOrPad2D:
       return x
 
 
+class RandomRotate:
+  """Rotates image pair batch by random angle."""
+
+  def __call__(self, x, y):
+    with tf.name_scope('random_rotate'):
+      angles = tf.random_uniform([1], 0, 360)
+      images = tf.contrib.image.rotate(tf.stack([x, y]), angles[0])
+
+      return images[0], images[1]
+
+
 class ExtractPatch:
   """Extracts a patch of `shape` centered at `index` from input."""
 

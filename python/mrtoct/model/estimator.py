@@ -58,6 +58,7 @@ def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
       data.transform.CropOrPad2D(slice_height, slice_width),
       data.transform.ExpandDims(),
   ])
+  pair_transform = data.transform.RandomRotate()
 
   inputs_dataset = (tf.data
                     .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
@@ -73,6 +74,7 @@ def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
 
   dataset = (tf.data.Dataset
              .zip((inputs_dataset, targets_dataset))
+             .map(pair_transform)
              .batch(batch_size)
              .repeat())
 
