@@ -10,7 +10,6 @@ def train(train_inputs_path, train_targets_path, eval_inputs_path,
   config = tf.ConfigProto()
   config.gpu_options.allow_growth = True
 
-  '''
   estimator = tf.contrib.gan.estimator.GANEstimator(
       add_summaries=None,
       use_loss_summaries=False,
@@ -21,40 +20,34 @@ def train(train_inputs_path, train_targets_path, eval_inputs_path,
       discriminator_loss_fn=model.pixtopix.discriminator_loss_fn,
       generator_optimizer=tf.train.AdamOptimizer(params.lr, params.beta1),
       discriminator_optimizer=tf.train.AdamOptimizer(params.lr, params.beta1))
-  '''
-
-  estimator = tf.estimator.Estimator(
-      model_fn=model.model_fn,
-      model_dir=checkpoint_path,
-      params=params)
 
   def train_input_fn():
-    inputs, targets = model.train_slice_input_fn(
+    return model.train_slice_input_fn(
         inputs_path=train_inputs_path,
         targets_path=train_targets_path,
         slice_height=params.slice_height,
         slice_width=params.slice_width,
         batch_size=params.batch_size)
-    return {'inputs': inputs}, {'targets': targets}
-
-  train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=1000)
 
   def eval_input_fn():
-    inputs, targets = model.train_slice_input_fn(
+    return model.train_slice_input_fn(
         inputs_path=eval_inputs_path,
         targets_path=eval_targets_path,
         slice_height=params.slice_height,
         slice_width=params.slice_width,
         batch_size=params.batch_size)
-    return {'inputs': inputs}, {'targets': targets}
 
   eval_hook = tf.train.SummarySaverHook(
       save_steps=10,
       scaffold=tf.train.Scaffold(),
       output_dir=os.path.join(checkpoint_path, 'eval'))
-  eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn, hooks=[eval_hook])
 
-  tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)
+  while True:
+    tf.logging.info('Training')
+    estimator.train(train_input_fn, steps=1000)
+
+    tf.logging.info('Validating')
+    estimator.predict(eval_input_fn, hooks=[eval_hook])
 
 
 def main(args):

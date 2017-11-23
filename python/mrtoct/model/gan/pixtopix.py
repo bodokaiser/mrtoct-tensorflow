@@ -63,8 +63,8 @@ def generator_loss_fn(model, **kargs):
   tf.summary.scalar('gradient_difference_loss', gdl)
 
   adv = tf.contrib.gan.GANLoss(
-      tf.contrib.gan.losses.minimax_generator_loss(model, **kargs),
-      tf.contrib.gan.losses.minimax_discriminator_loss(model, **kargs))
+      tf.contrib.gan.losses.least_squares_generator_loss(model, **kargs),
+      tf.contrib.gan.losses.least_squares_discriminator_loss(model, **kargs))
 
   tf.summary.scalar('adversarial_generator_loss', adv.generator_loss)
   tf.summary.scalar('adversarial_discriminator_loss', adv.discriminator_loss)
@@ -82,4 +82,4 @@ def generator_loss_fn(model, **kargs):
 
 
 def discriminator_loss_fn(model, **kargs):
-  return tf.contrib.gan.losses.minimax_discriminator_loss(model, **kargs)
+  return tf.contrib.gan.losses.least_squares_discriminator_loss(model, **kargs)
