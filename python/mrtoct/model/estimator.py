@@ -40,7 +40,7 @@ def model_fn(features, labels, mode, params):
     return tf.estimator.EstimatorSpec(
         mode, {'outputs': outputs}, loss)
 
-  optimizer = tf.train.AdamOptimizer(params.lr, params.beta1)
+  optimizer = tf.train.AdamOptimizer(params.learn_rate, params.beta1_rate)
 
   train = optimizer.minimize(loss, tf.train.get_global_step())
 
@@ -48,17 +48,15 @@ def model_fn(features, labels, mode, params):
       mode, {'outputs': outputs}, loss, train)
 
 
-def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
-                         batch_size):
+def train_slice_input_fn(inputs_path, targets_path, slice_shape, batch_size):
   pre_transform = data.transform.Compose([
       data.transform.DecodeExample(),
       data.transform.Normalize(),
   ])
   post_transform = data.transform.Compose([
-      data.transform.CropOrPad2D(slice_height, slice_width),
+      data.transform.CropOrPad2D(*slice_shape),
       data.transform.ExpandDims(),
   ])
-  pair_transform = data.transform.RandomRotate()
 
   inputs_dataset = (tf.data
                     .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
@@ -74,7 +72,6 @@ def train_slice_input_fn(inputs_path, targets_path, slice_height, slice_width,
 
   dataset = (tf.data.Dataset
              .zip((inputs_dataset, targets_dataset))
-             .map(pair_transform)
              .batch(batch_size)
              .repeat())
 

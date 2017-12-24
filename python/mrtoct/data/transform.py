@@ -81,6 +81,21 @@ class DecodeExample:
       return self.decoder.decode(x)
 
 
+class CropOrPad2D:
+  """Crops or pads image."""
+
+  def __init__(self, height, width):
+    self.height = height
+    self.width = width
+
+  def __call__(self, x):
+    with tf.name_scope('crop_or_pad_2d'):
+      x = tf.image.resize_image_with_crop_or_pad(x, self.height, self.width)
+      x = tf.reshape(x, [self.height, self.width])
+
+      return x
+
+
 class CenterPad3D:
   """Resizes volume by pad."""
 
