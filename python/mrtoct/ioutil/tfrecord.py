@@ -17,6 +17,8 @@ def _int64_feature(value):
 Options = tf.python_io.TFRecordOptions(
     tf.python_io.TFRecordCompressionType.GZIP)
 
+CString = Options.get_compression_type_string(Options)
+
 
 class Encoder:
   """Encodes a numpy volume array as tfrecord."""
@@ -61,5 +63,7 @@ class Decoder:
     with tf.name_scope('decode'):
       features = tf.parse_single_example(example, features=self.features)
 
-      return tf.reshape(tf.decode_raw(features['volume/encoded'], tf.int32),
-                        features['volume/shape'].values)
+      volume = tf.decode_raw(features['volume/encoded'], tf.int32)
+      volume = tf.reshape(volume, features['volume/shape'].values)
+
+      return volume

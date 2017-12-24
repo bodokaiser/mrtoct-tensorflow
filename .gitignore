@@ -1,8 +1,3 @@
 __pycache__
 matlab/spm12
-data/raw/*
-data/png/*
-data/dicom/*
-data/nifti/*
-data/chkpt/*
-data/tfrecord/*
+/data

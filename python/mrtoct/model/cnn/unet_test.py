@@ -5,16 +5,11 @@ from mrtoct import model
 
 class UNetTest(tf.test.TestCase):
 
-  def setUp(self):
-    self.params = tf.contrib.training.HParams(num_filters=64)
+  def test_network_fn(self):
+    x = tf.ones([10, 128, 128, 1])
+    y = model.unet.network_fn(x)
 
-  def test_unet(self):
-    network = model.unet.generator_network(self.params)
-
-    x = tf.zeros([10, 64, 64, 1])
-    y = network(x)
-
-    self.assertAllEqual(x.shape, y.shape)
+    self.assertAllEqual(tf.TensorShape([10, 128, 128, 1]), y.shape)
 
 
 if __name__ == '__main__':

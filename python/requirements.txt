@@ -2,4 +2,4 @@ scipy ~= 1.0
 pillow ~= 4.3
 nibabel ~= 2.2
 matplotlib ~= 2.1
-tensorflow ~= 1.4.0rc1
+tensorflow ~= 1.4

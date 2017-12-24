@@ -21,15 +21,14 @@ class Compose:
       return args
 
 
-class CastType:
-  """Casts input to given type."""
+class Lambda:
+  """Executes a lambda function."""
 
-  def __init__(self, dtype=tf.float32):
-    self.dtype = dtype
+  def __init__(self, func):
+    self.func = func
 
-  def __call__(self, x):
-    with tf.name_scope('cast_type'):
-      return tf.cast(x, self.dtype)
+  def __call__(self, *args):
+    return self.func(*args)
 
 
 class ExpandDims:
@@ -43,48 +42,12 @@ class ExpandDims:
       return tf.expand_dims(x, self.axis)
 
 
-class CenterPad:
-  """Pads input symmetric to `shape`."""
-
-  def __init__(self, shape):
-    self.shape = shape
-
-  def __call__(self, x):
-    with tf.name_scope('center_pad'):
-      target_shape = tf.convert_to_tensor(self.shape, name='target_shape')
-      input_shape = tf.shape(x, name='input_shape')
-
-      # TODO: check explicit if tensor shapes are compatible
-      ndims = target_shape.shape.num_elements()
-
-      paddings = []
-
-      for i in range(ndims):
-        offset = (target_shape[i] - input_shape[i]) / 2
-
-        paddings.append(tf.stack([tf.floor(offset), tf.ceil(offset)]))
-
-      return tf.pad(x, tf.to_int32(tf.stack(paddings)))
-
-
-class CenterCrop:
-  """Crops input symmetric to `shape`."""
-
-  def __init__(self, shape):
-    self.shape = shape
-
-  def __call__(self, x):
-    with tf.name_scope('center_crop'):
-      off = tf.subtract(tf.shape(x), self.shape) // 2
-
-      return tf.slice(x, off, self.shape)
-
-
 class Normalize:
   """Normalizes input to [0,1]."""
 
   def __call__(self, x):
     with tf.name_scope('normalize'):
+      x = tf.to_float(x)
       x -= tf.reduce_min(x)
       x /= tf.reduce_max(x)
 
@@ -118,40 +81,52 @@ class DecodeExample:
       return self.decoder.decode(x)
 
 
-class ExtractSlice:
-  """Extracts a slice from `axis` at `index` from input."""
+class CenterPad3D:
+  """Resizes volume by pad."""
 
-  def __init__(self, axis=0):
-    self.axis = axis
+  def __init__(self, depth, height, width):
+    self.height = height
+    self.width = width
+    self.depth = depth
 
-  def __call__(self, index, x):
-    if self.axis == 0:
-      return x[index]
-    if self.axis == 1:
-      return x[:, index]
-    if self.axis == 2:
-      return x[:, :, index]
+  def __call__(self, x):
+    with tf.name_scope('center_pad_3d'):
+      input_shape = tf.shape(x, name='input_shape')
+      target_shape = tf.constant([
+          self.depth, self.height, self.width],
+          name='target_shape')
 
-    raise ValueError(f'axis should be 0, 1, 2 not {self.axis}')
+      padding = []
+
+      for i in range(3):
+        offset = (target_shape[i] - input_shape[i]) / 2
+        padding.append(tf.stack([
+            tf.floor(offset), tf.ceil(offset)]))
+
+      padding.append([0, 0])
+
+      return tf.pad(x, tf.to_int32(tf.stack(padding)))
 
 
-class ExtractPatch:
-  """Extracts a patch of `shape` centered at `index` from input."""
+class IndexCrop3D:
+  """Crops patch of `shape` centered at `index` from input."""
 
-  def __init__(self, shape):
+  def __init__(self, shape, index):
+    self.index = index
     self.shape = shape
 
-  def __call__(self, index, x):
-    with tf.name_scope('extract_patch'):
-      index = tf.convert_to_tensor(index, name='index')
+  def __call__(self, x):
+    with tf.name_scope('index_crop_3d'):
+      index = tf.convert_to_tensor(self.index, name='index')
       shape = tf.convert_to_tensor(self.shape, name='shape')
       offset = tf.cast(tf.floor(shape / 2), index.dtype)
 
       start = []
-      for i in range(index.get_shape().num_elements()):
+      for i in range(3):
         start.append(index[i] - offset[i])
       start.append(0)
 
       start = tf.stack(start, name='start')
+      stop = tf.concat([shape, [-1]], axis=0, name='stop')
 
-      return tf.slice(x, start, shape)
+      return tf.slice(x, start, stop)

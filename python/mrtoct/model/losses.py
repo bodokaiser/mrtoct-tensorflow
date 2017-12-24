@@ -2,41 +2,19 @@ import tensorflow as tf
 
 from mrtoct import util
 
-
-EPSILON = 1e-12
-
-
-def mae(targets, outputs):
-  with tf.name_scope('mae'):
-    return tf.reduce_mean(tf.abs(targets - outputs))
+mse = tf.losses.mean_squared_error
 
 
-def mse(targets, outputs):
-  with tf.name_scope('mse'):
-    return tf.reduce_mean(tf.square(targets - outputs))
+def gradient_difference_loss_2d(targets, outputs):
+  with tf.name_scope('gradient_difference_loss_2d'):
+    return tf.reduce_sum(tf.image.total_variation(targets - outputs))
 
 
-def adv_d(fake_score, real_score):
-  with tf.name_scope('adv'):
-    r_log = -tf.log(real_score + EPSILON)
-    f_log = -tf.log(1 - fake_score + EPSILON)
+def gradient_difference_loss_3d(targets, outputs):
+  with tf.name_scope('gradient_difference_loss_3d'):
+    grad1 = util.spatial_gradient_3d(targets)
+    grad2 = util.spatial_gradient_3d(outputs)
 
-    return tf.reduce_mean(r_log + f_log)
-
-
-def adv_g(fake_score):
-  with tf.name_scope('adv'):
-    return tf.reduce_mean(-tf.log(fake_score + EPSILON))
-
-
-def gdl(targets, outputs):
-  with tf.name_scope('gdl'):
-    targets_grad = util.spatial_gradient_3d(targets)
-    outputs_grad = util.spatial_gradient_3d(outputs)
-
-    loss = tf.zeros([])
-
-    for i in range(3):
-      loss += mse(tf.abs(targets_grad[i]), tf.abs(outputs_grad[i]))
-
-    return loss
+    return mse(tf.abs(grad1[0]), tf.abs(grad2[0]), loss_collection=None) + \
+        mse(tf.abs(grad1[1]), tf.abs(grad2[1]), loss_collection=None) + \
+        mse(tf.abs(grad1[2]), tf.abs(grad2[2]), loss_collection=None)

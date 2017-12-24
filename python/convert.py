@@ -6,12 +6,6 @@ from mrtoct import ioutil
 
 
 def convert(input_paths, output_path):
-  """Converts volumes from NIfTI to TFRecord format.
-
-  Args:
-    input_path: list of paths to nifti volumes
-    output_path: path to write TFRecords to
-  """
   encoder = ioutil.TFRecordEncoder()
   options = ioutil.TFRecordOptions
 
@@ -34,7 +28,9 @@ def main(args):
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser('patch')
+  parser = argparse.ArgumentParser('convert', description='''
+    Converts NIfTI volumes to tfrecord.
+  ''')
   parser.add_argument('--input-paths', required=True, nargs='+')
   parser.add_argument('--output-path', required=True)
 

@@ -1,101 +1,58 @@
 import tensorflow as tf
 
-from mrtoct.model import layers
+xavier_init = tf.contrib.layers.xavier_initializer
 
 
-def encoder_layer(inputs, num_filters, batch_norm=True):
-  """Creates u-net encoder layer.
-
-  Args:
-    inputs: input tensor of shape [batch, height, width, channels]
-    num_filters: number of output channels
-    batch_norm=`True`: use batch normalization after convolution
-  Returns:
-    outputs: output tensor of shape [batch, height, width, num_filters]
-  """
-  outputs = layers.Conv2D(num_filters, 3, 2)(inputs)
-
+def encode(x, num_filters, batch_norm=True):
+  x = tf.layers.conv2d(x, num_filters, 4, 2, 'same',
+                       kernel_initializer=xavier_init())
   if batch_norm:
-    outputs = layers.BatchNorm()(outputs)
+    x = tf.layers.batch_normalization(x)
 
-  outputs = layers.LeakyReLU()(outputs)
-
-  return outputs
+  return tf.nn.leaky_relu(x)
 
 
-def decoder_layer(inputs, num_filters, batch_norm=True, dropout=False):
-  """Creates u-net decoder layer.
-
-  If `inputs` is a list these tensors will be concatenated along their
-  innermost dimension.
-
-  Args:
-    inputs: one or two input tensor of shape [batch, height, width, channels]
-    num_filters: number of output channels
-    batch_norm='True': use batch normalization after convolution
-    dropout='False': use dropout after batch normalization
-  Returns:
-    outputs: output tensor of shape [batch, height, width, num_filters]
-  """
-  if type(inputs) is list:
-    outputs = layers.Concatenate(axis=3)(inputs)
-  else:
-    outputs = inputs
-  outputs = layers.Conv2DTranspose(num_filters, 3, 2)(outputs)
+def decode(x, num_filters, batch_norm=True, dropout=False):
+  x = tf.layers.conv2d_transpose(x, num_filters, 4, 2, 'same',
+                                 kernel_initializer=xavier_init())
   if batch_norm:
-    outputs = layers.BatchNorm()(outputs)
+    x = tf.layers.batch_normalization(x)
   if dropout:
-    outputs = layers.Dropout()(outputs)
+    x = tf.layers.dropout(x)
 
-  return layers.LeakyReLU()(outputs)
-
-
-def final_layer(inputs):
-  """Creates u-net final layer.
-
-  The original u-net architecture was built for binary classification,
-  however in our case we want to have same output shape as the input,
-  hence we replace the original final layer of u-net with a layer which
-  decodes the previous output back to one channel.
-
-  Args:
-    inputs: input tensor of shape [batch, height, width, channels]
-  Returns:
-    outputs: output tensor of shape [batch, height, width, 1]
-  """
-  outputs = layers.Conv2DTranspose(1, 3, 1)(inputs)
-
-  return layers.Activation(tf.nn.tanh)(outputs)
+  return tf.nn.relu(x)
 
 
-def generator_network(params):
-  """Creates a u-net network.
+def final(x):
+  x = tf.layers.conv2d_transpose(x, 1, 3, 1, 'same',
+                                 kernel_initializer=xavier_init())
+  return tf.nn.tanh(x)
 
-  Args:
-    inputs: input tensor of shape [batch, height, width, 1]
-    num_filters: number of filters to act as base between layers
-  Returns:
-    outputs: output tensor of shape [batch, height, width, 1]
-  """
-  filters = [a * params.num_filters for a in [1, 2, 4, 8, 8]]
 
-  inputs = outputs = layers.Input(shape=(None, None, 1))
+def generator_fn(x):
+  with tf.variable_scope('encode1'):
+    enc1 = encode(x, 64, batch_norm=False)
+  with tf.variable_scope('encode2'):
+    enc2 = encode(enc1, 128)
+  with tf.variable_scope('encode3'):
+    enc3 = encode(enc2, 256)
+  with tf.variable_scope('encode4'):
+    enc4 = encode(enc3, 512)
+  with tf.variable_scope('encode5'):
+    enc5 = encode(enc4, 512)
 
-  encoded = []
-  for i, nf in enumerate(filters):
-    x = inputs if i == 0 else encoded[-1]
+  with tf.variable_scope('decode5'):
+    dec5 = decode(enc5, 512, dropout=True)
+  with tf.variable_scope('decode4'):
+    dec4 = decode(tf.concat([dec5, enc4], -1), 512, dropout=True)
+  with tf.variable_scope('decode3'):
+    dec3 = decode(tf.concat([dec4, enc3], -1), 256)
+  with tf.variable_scope('decode2'):
+    dec2 = decode(tf.concat([dec3, enc2], -1), 128)
+  with tf.variable_scope('decode1'):
+    dec1 = decode(tf.concat([dec2, enc1], -1), 64)
 
-    with tf.variable_scope(f'encode{i}'):
-      encoded.append(encoder_layer(x, num_filters=nf, batch_norm=i != 0))
+  with tf.variable_scope('final'):
+    y = final(dec1)
 
-  decoded = []
-  for i, nf in enumerate(reversed(filters)):
-    x = encoded[-1] if i == 0 else [encoded[-1 - i], decoded[-1]]
-
-    with tf.variable_scope(f'decode{i}'):
-      decoded.append(decoder_layer(x, num_filters=nf, dropout=i in [0, 1]))
-
-  with tf.variable_scope('finalize'):
-    outputs = final_layer(decoded[-1])
-
-  return layers.Network(inputs, outputs, name='unet')
+  return y
