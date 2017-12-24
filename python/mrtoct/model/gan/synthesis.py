@@ -6,7 +6,10 @@ xavier_init = tf.contrib.layers.xavier_initializer
 
 
 def _gconv(x, kernel_size, filters, padding, activation=tf.nn.relu):
-  x = tf.layers.conv3d(x, filters, kernel_size, padding,
+  x = tf.layers.conv3d(inputs=x,
+                       filters=filters,
+                       padding=padding,
+                       kernel_size=kernel_size,
                        kernel_initializer=xavier_init())
   x = tf.layers.batch_normalization(x)
 

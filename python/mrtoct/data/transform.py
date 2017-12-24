@@ -21,6 +21,16 @@ class Compose:
       return args
 
 
+class Lambda:
+  """Executes a lambda function."""
+
+  def __init__(self, func):
+    self.func = func
+
+  def __call__(self, *args):
+    return self.func(*args)
+
+
 class ExpandDims:
   """Expands input at given axis."""
 
@@ -71,50 +81,52 @@ class DecodeExample:
       return self.decoder.decode(x)
 
 
-class CropOrPad2D:
-  """Resizes image by crop or pad."""
+class CenterPad3D:
+  """Resizes volume by pad."""
 
-  def __init__(self, height, width):
+  def __init__(self, depth, height, width):
     self.height = height
     self.width = width
+    self.depth = depth
 
   def __call__(self, x):
-    with tf.name_scope('crop_or_pad_2d'):
-      x = tf.image.resize_image_with_crop_or_pad(x, self.height, self.width)
-      x = tf.reshape(x, [self.height, self.width])
+    with tf.name_scope('center_pad_3d'):
+      input_shape = tf.shape(x, name='input_shape')
+      target_shape = tf.constant([
+          self.depth, self.height, self.width],
+          name='target_shape')
 
-      return x
+      padding = []
+
+      for i in range(3):
+        offset = (target_shape[i] - input_shape[i]) / 2
+        padding.append(tf.stack([
+            tf.floor(offset), tf.ceil(offset)]))
+
+      padding.append([0, 0])
+
+      return tf.pad(x, tf.to_int32(tf.stack(padding)))
 
 
-class RandomRotate:
-  """Rotates image pair batch by random angle."""
-
-  def __call__(self, x, y):
-    with tf.name_scope('random_rotate'):
-      angles = tf.random_uniform([1], 0, 360)
-      images = tf.contrib.image.rotate(tf.stack([x, y]), angles[0])
-
-      return images[0], images[1]
-
-
-class ExtractPatch:
-  """Extracts a patch of `shape` centered at `index` from input."""
+class IndexCrop3D:
+  """Crops patch of `shape` centered at `index` from input."""
 
   def __init__(self, shape, index):
     self.index = index
     self.shape = shape
 
   def __call__(self, x):
-    with tf.name_scope('extract_patch'):
+    with tf.name_scope('index_crop_3d'):
       index = tf.convert_to_tensor(self.index, name='index')
       shape = tf.convert_to_tensor(self.shape, name='shape')
       offset = tf.cast(tf.floor(shape / 2), index.dtype)
 
       start = []
-      for i in range(index.get_shape().num_elements()):
+      for i in range(3):
         start.append(index[i] - offset[i])
       start.append(0)
 
       start = tf.stack(start, name='start')
+      stop = tf.concat([shape, [-1]], axis=0, name='stop')
 
-      return tf.slice(x, start, shape)
+      return tf.slice(x, start, stop)

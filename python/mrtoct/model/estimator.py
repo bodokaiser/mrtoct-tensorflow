@@ -92,10 +92,9 @@ def train_patch_input_fn(inputs_path, targets_path, volume_shape, inputs_shape,
   with tf.name_scope('volume'):
     volume_transform = data.transform.Compose([
         data.transform.DecodeExample(),
-        data.transform.CastType(),
         data.transform.Normalize(),
-        data.transform.CenterMean(),
-        data.transform.CenterPad(volume_shape),
+        data.transform.CenterPad3D(*volume_shape[:3]),
+        data.transform.Lambda(lambda x: tf.reshape(x, volume_shape)),
     ])
 
     inputs_volume_dataset = tf.data.TFRecordDataset(
@@ -104,8 +103,8 @@ def train_patch_input_fn(inputs_path, targets_path, volume_shape, inputs_shape,
         targets_path, ioutil.TFRecordCString).map(volume_transform).cache()
 
   with tf.name_scope('patch'):
-    inputs_transform = data.transform.ExtractPatch(inputs_shape, index)
-    targets_transform = data.transform.ExtractPatch(targets_shape, index)
+    inputs_transform = data.transform.IndexCrop3D(inputs_shape, index)
+    targets_transform = data.transform.IndexCrop3D(targets_shape, index)
 
     inputs_patch_dataset = inputs_volume_dataset.map(inputs_transform)
     targets_patch_dataset = targets_volume_dataset.map(targets_transform)
