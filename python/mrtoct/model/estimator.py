@@ -5,7 +5,7 @@ from mrtoct.model import losses
 
 
 def model_fn(features, labels, mode, params):
-  inputs, targets = features['inputs'], labels['targets']
+  inputs = features['inputs']
 
   if params.data_format == 'channels_first':
     nchw_transform = data.transform.DataFormat2D('channels_first')
@@ -16,13 +16,16 @@ def model_fn(features, labels, mode, params):
   else:
     outputs = params.generator_fn(inputs)
 
+  if tf.estimator.ModeKeys.PREDICT == mode:
+    return tf.estimator.EstimatorSpec(mode, {
+        'inputs': inputs, 'outputs': outputs})
+
+  targets = labels['targets']
+
   tf.summary.image('inputs', inputs, max_outputs=1)
   tf.summary.image('outputs', outputs, max_outputs=1)
   tf.summary.image('targets', targets, max_outputs=1)
   tf.summary.image('residue', targets - outputs, max_outputs=1)
-
-  if tf.estimator.ModeKeys.PREDICT == mode:
-    return tf.estimator.EstimatorSpec(mode, {'outputs': outputs})
 
   mse = tf.losses.mean_squared_error(targets, outputs)
   mae = tf.losses.absolute_difference(targets, outputs)
@@ -70,20 +73,40 @@ def train_slice_input_fn(inputs_path, targets_path, slice_shape, batch_size):
                     .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
                     .map(pre_transform)
                     .apply(tf.contrib.data.unbatch())
-                    .map(post_transform)
-                    .cache())
+                    .map(post_transform))
 
   targets_dataset = (tf.data
                      .TFRecordDataset(targets_path, ioutil.TFRecordCString)
                      .map(pre_transform)
                      .apply(tf.contrib.data.unbatch())
-                     .map(post_transform)
-                     .cache())
+                     .map(post_transform))
 
   dataset = (tf.data.Dataset
              .zip((inputs_dataset, targets_dataset))
              .batch(batch_size)
              .repeat())
+
+  return dataset.make_one_shot_iterator().get_next()
+
+
+def predict_slice_input_fn(inputs_path, slice_shape, offset):
+  pre_transform = data.transform.Compose([
+      data.transform.DecodeExample(),
+      data.transform.Normalize(),
+  ])
+  post_transform = data.transform.Compose([
+      data.transform.CropOrPad2D(*slice_shape),
+      data.transform.ExpandDims(),
+  ])
+
+  dataset = (tf.data
+             .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
+             .skip(offset)
+             .take(1)
+             .map(pre_transform)
+             .apply(tf.contrib.data.unbatch())
+             .map(post_transform)
+             .batch(1))
 
   return dataset.make_one_shot_iterator().get_next()
 

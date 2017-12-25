@@ -36,8 +36,6 @@ class Encoder:
           'volume/encoded': _bytes_feature([
               volume.astype(np.int32).tobytes()]),
           'volume/shape': _int64_feature(volume.shape),
-          'volume/vmin': _int64_feature([volume.min()]),
-          'volume/vmax': _int64_feature([volume.max()]),
       })).SerializeToString()
 
 
@@ -48,8 +46,6 @@ class Decoder:
     self.features = {
         'volume/encoded': tf.FixedLenFeature((), tf.string),
         'volume/shape': tf.VarLenFeature(tf.int64),
-        'volume/vmin': tf.FixedLenFeature((), tf.int64),
-        'volume/vmax': tf.FixedLenFeature((), tf.int64),
     }
 
   def decode(self, example):
