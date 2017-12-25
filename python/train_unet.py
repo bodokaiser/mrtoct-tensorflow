@@ -6,6 +6,7 @@ from mrtoct import model
 
 def train(inputs_path, targets_path, checkpoint_path, params):
   config = tf.ConfigProto()
+  config.log_device_placement = True
   config.gpu_options.allow_growth = True
 
   estimator = tf.estimator.Estimator(
