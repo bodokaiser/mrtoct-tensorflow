@@ -42,22 +42,32 @@ class ExpandDims:
       return tf.expand_dims(x, self.axis)
 
 
-class DataFormat:
-  """Changes data format of tensor."""
+class DataFormat2D:
+  """Changes data format of image batch."""
 
   def __init__(self, format):
-    if format == 'NCHW':
+    if format == 'channels_first':
       self.perm = [0, 3, 1, 2]
-    if format == 'NHWC':
+    if format == 'channels_last':
       self.perm = [0, 2, 3, 1]
-    if format == 'NCDHW':
+
+  def __call__(self, x):
+    with tf.name_scope('data_format_2d'):
+      return tf.transpose(x, self.perm)
+
+
+class DataFormat3D:
+  """Changes data format of volume batch."""
+
+  def __init__(self, format):
+    if format == 'channels_first':
       self.perm = [0, 4, 1, 2, 3]
-    if format == 'NDHWC':
+    if format == 'channels_last':
       self.perm = [0, 2, 3, 4, 1]
 
   def __call__(self, x):
-    with tf.name_scope('data_format'):
-      return tf.transpose(x, perm=self.perm)
+    with tf.name_scope('data_format_3d'):
+      return tf.transpose(x, self.perm)
 
 
 class Normalize:

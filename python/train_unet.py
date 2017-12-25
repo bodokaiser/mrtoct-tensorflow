@@ -32,6 +32,7 @@ def main(args):
       beta1_rate=5e-1,
       batch_size=16,
       slice_shape=[384, 384],
+      data_format='channels_first',
       generator_fn=model.unet.generator_fn)
   hparams.parse(args.hparams)
 

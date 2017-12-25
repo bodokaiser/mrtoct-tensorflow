@@ -6,7 +6,15 @@ from mrtoct.model import losses
 
 def model_fn(features, labels, mode, params):
   inputs, targets = features['inputs'], labels['targets']
-  outputs = params.generator_fn(inputs)
+
+  if params.data_format == 'channels_first':
+    nchw_transform = data.transform.DataFormat2D('channels_first')
+    nhwc_transform = data.transform.DataFormat2D('channels_last')
+
+    outputs = params.generator_fn(nchw_transform(inputs), params.data_format)
+    outputs = nhwc_transform(outputs)
+  else:
+    outputs = params.generator_fn(inputs)
 
   tf.summary.image('inputs', inputs, max_outputs=1)
   tf.summary.image('outputs', outputs, max_outputs=1)
@@ -62,13 +70,15 @@ def train_slice_input_fn(inputs_path, targets_path, slice_shape, batch_size):
                     .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
                     .map(pre_transform)
                     .apply(tf.contrib.data.unbatch())
-                    .map(post_transform))
+                    .map(post_transform)
+                    .cache())
 
   targets_dataset = (tf.data
                      .TFRecordDataset(targets_path, ioutil.TFRecordCString)
                      .map(pre_transform)
                      .apply(tf.contrib.data.unbatch())
-                     .map(post_transform))
+                     .map(post_transform)
+                     .cache())
 
   dataset = (tf.data.Dataset
              .zip((inputs_dataset, targets_dataset))

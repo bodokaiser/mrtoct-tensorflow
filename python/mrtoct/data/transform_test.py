@@ -29,23 +29,29 @@ class TransformTest(tf.test.TestCase):
       self.assertAllEqual(y.eval(), t1(x).eval())
       self.assertAllEqual(z.eval(), t2(y).eval())
 
-  def test_data_format(self):
+  def test_data_format_2d(self):
     x = np.random.randn(10, 30, 40, 3)
-    y = np.random.randn(10, 20, 30, 40, 3)
 
     nhwc = tf.constant(x)
     nchw = tf.transpose(nhwc, perm=[0, 3, 1, 2])
-    ndhwc = tf.constant(y)
-    ncdhw = tf.transpose(ndhwc, perm=[0, 4, 1, 2, 3])
 
-    tNHWC = data.transform.DataFormat('NHWC')
-    tNCHW = data.transform.DataFormat('NCHW')
-    tNDHWC = data.transform.DataFormat('NDHWC')
-    tNCDHW = data.transform.DataFormat('NCDHW')
+    tNHWC = data.transform.DataFormat2D('channels_last')
+    tNCHW = data.transform.DataFormat2D('channels_first')
 
     with self.test_session():
       self.assertAllClose(nchw.eval(), tNCHW(nhwc).eval())
       self.assertAllClose(nhwc.eval(), tNHWC(nchw).eval())
+
+  def test_data_format_3d(self):
+    x = np.random.randn(10, 20, 30, 40, 3)
+
+    ndhwc = tf.constant(x)
+    ncdhw = tf.transpose(ndhwc, perm=[0, 4, 1, 2, 3])
+
+    tNDHWC = data.transform.DataFormat3D('channels_last')
+    tNCDHW = data.transform.DataFormat3D('channels_first')
+
+    with self.test_session():
       self.assertAllClose(ndhwc.eval(), tNDHWC(ncdhw).eval())
       self.assertAllClose(ncdhw.eval(), tNCDHW(ndhwc).eval())
 
