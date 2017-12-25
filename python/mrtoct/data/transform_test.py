@@ -29,6 +29,26 @@ class TransformTest(tf.test.TestCase):
       self.assertAllEqual(y.eval(), t1(x).eval())
       self.assertAllEqual(z.eval(), t2(y).eval())
 
+  def test_data_format(self):
+    x = np.random.randn(10, 30, 40, 3)
+    y = np.random.randn(10, 20, 30, 40, 3)
+
+    nhwc = tf.constant(x)
+    nchw = tf.transpose(nhwc, perm=[0, 3, 1, 2])
+    ndhwc = tf.constant(y)
+    ncdhw = tf.transpose(ndhwc, perm=[0, 4, 1, 2, 3])
+
+    tNHWC = data.transform.DataFormat('NHWC')
+    tNCHW = data.transform.DataFormat('NCHW')
+    tNDHWC = data.transform.DataFormat('NDHWC')
+    tNCDHW = data.transform.DataFormat('NCDHW')
+
+    with self.test_session():
+      self.assertAllClose(nchw.eval(), tNCHW(nhwc).eval())
+      self.assertAllClose(nhwc.eval(), tNHWC(nchw).eval())
+      self.assertAllClose(ndhwc.eval(), tNDHWC(ncdhw).eval())
+      self.assertAllClose(ncdhw.eval(), tNCDHW(ndhwc).eval())
+
   def test_normalize(self):
     x = tf.constant([5, 11, 6, 1])
     y = tf.constant([0.4, 1.0, 0.5, 0.0])

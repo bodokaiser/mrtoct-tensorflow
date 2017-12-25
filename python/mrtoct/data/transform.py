@@ -42,6 +42,24 @@ class ExpandDims:
       return tf.expand_dims(x, self.axis)
 
 
+class DataFormat:
+  """Changes data format of tensor."""
+
+  def __init__(self, format):
+    if format == 'NCHW':
+      self.perm = [0, 3, 1, 2]
+    if format == 'NHWC':
+      self.perm = [0, 2, 3, 1]
+    if format == 'NCDHW':
+      self.perm = [0, 4, 1, 2, 3]
+    if format == 'NDHWC':
+      self.perm = [0, 2, 3, 4, 1]
+
+  def __call__(self, x):
+    with tf.name_scope('data_format'):
+      return tf.transpose(x, perm=self.perm)
+
+
 class Normalize:
   """Normalizes input to [0,1]."""
 
