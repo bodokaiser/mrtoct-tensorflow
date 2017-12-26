@@ -48,7 +48,7 @@ def final(x, data_format):
   return tf.nn.tanh(x)
 
 
-def generator_fn(x, data_format='channels_last'):
+def generator_fn(x, data_format):
   axis = data_format_to_axis(data_format)
 
   with tf.variable_scope('encode1'):

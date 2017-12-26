@@ -5,11 +5,8 @@ from mrtoct import model
 
 
 def train(inputs_path, targets_path, checkpoint_path, params):
-  config = tf.ConfigProto()
-  config.log_device_placement = True
-
   estimator = tf.estimator.Estimator(
-      model_fn=model.cnn_model_fn,
+      model_fn=model.gan_model_fn,
       model_dir=checkpoint_path,
       params=params)
 
@@ -32,8 +29,12 @@ def main(args):
       beta1_rate=5e-1,
       batch_size=16,
       slice_shape=[384, 384],
+      weight_factor=1e-2,
       data_format='channels_first',
-      generator_fn=model.unet.generator_fn)
+      generator_fn=model.pixtopix.generator_fn,
+      discriminator_fn=model.pixtopix.discriminator_fn,
+      generator_loss_fn=tf.contrib.gan.losses.modified_generator_loss,
+      discriminator_loss_fn=tf.contrib.gan.losses.modified_discriminator_loss)
   hparams.parse(args.hparams)
 
   train(inputs_path=args.inputs_path,

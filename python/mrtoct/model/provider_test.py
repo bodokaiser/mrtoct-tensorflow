@@ -1,12 +1,12 @@
 import tensorflow as tf
 
-from mrtoct.model import estimator
+from mrtoct import model
 
 
-class EstimatorTest(tf.test.TestCase):
+class ProviderTest(tf.test.TestCase):
 
   def test_train_patch_input_fn(self):
-    inputs, targets = estimator.train_patch_input_fn(
+    inputs, targets = model.train_patch_input_fn(
         inputs_path='../data/tfrecord/training/mr.tfrecord',
         targets_path='../data/tfrecord/training/mr.tfrecord',
         volume_shape=[260, 340, 360, 1],

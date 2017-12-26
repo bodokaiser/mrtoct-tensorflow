@@ -1,10 +1,10 @@
 import tensorflow as tf
 
-from mrtoct import data, patch, ioutil
+from mrtoct import data
 from mrtoct.model import losses
 
 
-def model_fn(features, labels, mode, params):
+def cnn_model_fn(features, labels, mode, params):
   inputs = features['inputs']
 
   if params.data_format == 'channels_first':
@@ -59,91 +59,89 @@ def model_fn(features, labels, mode, params):
       mode, {'outputs': outputs}, loss, train)
 
 
-def train_slice_input_fn(inputs_path, targets_path, slice_shape, batch_size):
-  pre_transform = data.transform.Compose([
-      data.transform.DecodeExample(),
-      data.transform.Normalize(),
-  ])
-  post_transform = data.transform.Compose([
-      data.transform.CropOrPad2D(*slice_shape),
-      data.transform.ExpandDims(),
-  ])
+def gan_model_fn(features, labels, mode, params):
+  inputs = features['inputs']
+  targets = labels['targets']
 
-  inputs_dataset = (tf.data
-                    .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
-                    .map(pre_transform)
-                    .apply(tf.contrib.data.unbatch())
-                    .map(post_transform))
+  if params.data_format == 'channels_first':
+    in_transform = data.transform.DataFormat2D('channels_first')
+    out_transform = data.transform.DataFormat2D('channels_last')
+  else:
+    in_transform = out_transform = lambda x: x
 
-  targets_dataset = (tf.data
-                     .TFRecordDataset(targets_path, ioutil.TFRecordCString)
-                     .map(pre_transform)
-                     .apply(tf.contrib.data.unbatch())
-                     .map(post_transform))
+  def generator_fn(x):
+    return params.generator_fn(x, params.data_format)
 
-  dataset = (tf.data.Dataset
-             .zip((inputs_dataset, targets_dataset))
-             .batch(batch_size)
-             .repeat())
+  def discriminator_fn(x, y):
+    return params.discriminator_fn(x, y, params.data_format)
 
-  return dataset.make_one_shot_iterator().get_next()
+  gan_model = tf.contrib.gan.gan_model(
+      generator_fn=generator_fn,
+      discriminator_fn=discriminator_fn,
+      real_data=in_transform(targets),
+      generator_inputs=in_transform(inputs))
 
+  gan_loss = tf.contrib.gan.gan_loss(
+      model=gan_model,
+      generator_loss_fn=params.generator_loss_fn,
+      discriminator_loss_fn=params.discriminator_loss_fn,
+  )
 
-def predict_slice_input_fn(inputs_path, slice_shape, offset):
-  pre_transform = data.transform.Compose([
-      data.transform.DecodeExample(),
-      data.transform.Normalize(),
-  ])
-  post_transform = data.transform.Compose([
-      data.transform.CropOrPad2D(*slice_shape),
-      data.transform.ExpandDims(),
-  ])
+  outputs = out_transform(gan_model.generated_data)
 
-  dataset = (tf.data
-             .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
-             .skip(offset)
-             .take(1)
-             .map(pre_transform)
-             .apply(tf.contrib.data.unbatch())
-             .map(post_transform)
-             .batch(1))
+  tf.summary.image('inputs', inputs, max_outputs=1)
+  tf.summary.image('outputs', outputs, max_outputs=1)
+  tf.summary.image('targets', targets, max_outputs=1)
+  tf.summary.image('residue', targets - outputs, max_outputs=1)
 
-  return dataset.make_one_shot_iterator().get_next()
+  with tf.name_scope('loss'):
+    mae = tf.norm(targets - outputs, ord=1)
+    mse = tf.norm(targets - outputs, ord=2)
+    gdl = tf.reduce_sum(tf.image.total_variation(targets - outputs))
 
+    tf.summary.scalar('mean_squared_error', mse)
+    tf.summary.scalar('mean_absolute_error', mae)
+    tf.summary.scalar('gradient_difference_loss', gdl)
 
-def train_patch_input_fn(inputs_path, targets_path, volume_shape, inputs_shape,
-                         targets_shape, batch_size):
-  with tf.name_scope('sample'):
-    offset = tf.convert_to_tensor(inputs_shape[:3]) // 2
-    length = tf.convert_to_tensor(volume_shape[:3]) - offset
+    loss = 3 * mae + gdl
 
-    index = patch.sample_uniform_3d(offset, length, 1)[0]
+    tf.summary.scalar('total_loss', loss)
 
-  with tf.name_scope('volume'):
-    volume_transform = data.transform.Compose([
-        data.transform.DecodeExample(),
-        data.transform.Normalize(),
-        data.transform.CenterPad3D(*volume_shape[:3]),
-        data.transform.Lambda(lambda x: tf.reshape(x, volume_shape)),
-    ])
+    vars = tf.trainable_variables()
 
-    inputs_volume_dataset = tf.data.TFRecordDataset(
-        inputs_path, ioutil.TFRecordCString).map(volume_transform).cache()
-    targets_volume_dataset = tf.data.TFRecordDataset(
-        targets_path, ioutil.TFRecordCString).map(volume_transform).cache()
+    gdl_grad = tf.global_norm(tf.gradients(gdl, vars))
+    mae_grad = tf.global_norm(tf.gradients(mae, vars))
+    mse_grad = tf.global_norm(tf.gradients(mse, vars))
 
-  with tf.name_scope('patch'):
-    inputs_transform = data.transform.IndexCrop3D(inputs_shape, index)
-    targets_transform = data.transform.IndexCrop3D(targets_shape, index)
+    tf.summary.scalar('gradient_difference_loss_gradient', gdl_grad)
+    tf.summary.scalar('mean_absolute_error_gradient', mae_grad)
+    tf.summary.scalar('mean_squared_error_gradient', mse_grad)
 
-    inputs_patch_dataset = inputs_volume_dataset.map(inputs_transform)
-    targets_patch_dataset = targets_volume_dataset.map(targets_transform)
+    real_score = gan_model.discriminator_real_outputs
+    fake_score = gan_model.discriminator_gen_outputs
 
-    patch_dataset = (tf.data.Dataset
-                     .zip((inputs_patch_dataset, targets_patch_dataset))
-                     .batch(batch_size))
+    tf.summary.histogram('real_score', real_score)
+    tf.summary.histogram('fake_score', fake_score)
 
-    patch_iterator = patch_dataset.make_initializable_iterator()
+    gan_loss = tf.contrib.gan.losses.combine_adversarial_loss(
+        gan_loss=gan_loss,
+        gan_model=gan_model,
+        non_adversarial_loss=loss,
+        weight_factor=params.weight_factor,
+    )
 
-    with tf.control_dependencies([patch_iterator.initializer]):
-      return patch_iterator.get_next()
+  with tf.name_scope('train'):
+    generator_optimizer = tf.train.AdamOptimizer(
+        params.learn_rate, params.beta1_rate)
+    discriminator_optimizer = tf.train.AdamOptimizer(
+        params.learn_rate, params.beta1_rate)
+
+    train = tf.contrib.gan.gan_train_ops(
+        model=gan_model,
+        loss=gan_loss,
+        generator_optimizer=generator_optimizer,
+        discriminator_optimizer=discriminator_optimizer)
+    train_op = tf.group(*list(train))
+
+  return tf.estimator.EstimatorSpec(
+      mode, {'outputs': outputs}, loss, train_op)
