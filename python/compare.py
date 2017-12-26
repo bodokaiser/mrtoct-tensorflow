@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from mrtoct import ioutil, data
 
 
-def compare(inputs_path, outputs_path, targets_path):
+def compare(slice, inputs_path, outputs_path, targets_path):
   transform = data.transform.Compose([
       data.transform.DecodeExample(),
       data.transform.Normalize(),
@@ -31,22 +31,24 @@ def compare(inputs_path, outputs_path, targets_path):
     mr, re, ct = session.run(volumes)
 
     fig, axes = plt.subplots(1, 3)
-    axes[0].imshow(mr[10, :, :, 0])
-    axes[1].imshow(re[10, :, :, 0])
-    axes[2].imshow(ct[10, :, :, 0])
+    axes[0].imshow(mr[slice, :, :, 0])
+    axes[1].imshow(re[slice, :, :, 0])
+    axes[2].imshow(ct[slice, :, :, 0])
     plt.show()
 
 
 def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
-  compare(inputs_path=args.inputs_path,
+  compare(slice=args.slice,
+          inputs_path=args.inputs_path,
           outputs_path=args.outputs_path,
           targets_path=args.targets_path)
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser('compare')
+  parser.add_argument('--slice', type=int, required=True)
   parser.add_argument('--inputs-path', required=True)
   parser.add_argument('--outputs-path', required=True)
   parser.add_argument('--targets-path', required=True)
