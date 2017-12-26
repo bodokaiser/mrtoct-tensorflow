@@ -10,7 +10,7 @@ def predict(inputs_path, outputs_path, checkpoint_path, params):
   options = ioutil.TFRecordOptions
 
   estimator = tf.estimator.Estimator(
-      model_fn=model.cnn_model_fn,
+      model_fn=model.gan_model_fn,
       params=params)
 
   def create_input_fn(offset):
@@ -52,7 +52,8 @@ def main(args):
   hparams = tf.contrib.training.HParams(
       data_format='channels_last',
       slice_shape=[384, 384],
-      generator_fn=model.unet.generator_fn)
+      generator_fn=model.pixtopix.generator_fn,
+      discriminator_fn=model.pixtopix.discriminator_fn)
   hparams.parse(args.hparams)
 
   predict(inputs_path=args.inputs_path,

@@ -61,7 +61,6 @@ def cnn_model_fn(features, labels, mode, params):
 
 def gan_model_fn(features, labels, mode, params):
   inputs = features['inputs']
-  targets = labels['targets']
 
   if params.data_format == 'channels_first':
     in_transform = data.transform.DataFormat2D('channels_first')
@@ -72,6 +71,15 @@ def gan_model_fn(features, labels, mode, params):
   def generator_fn(x):
     return params.generator_fn(x, params.data_format)
 
+  if tf.estimator.ModeKeys.PREDICT == mode:
+    with tf.variable_scope('Generator'):
+      outputs = out_transform(generator_fn(in_transform(inputs)))
+
+    return tf.estimator.EstimatorSpec(
+        mode, {'inputs': inputs, 'outputs': outputs})
+
+  targets = labels['targets']
+
   def discriminator_fn(x, y):
     return params.discriminator_fn(x, y, params.data_format)
 
@@ -81,13 +89,13 @@ def gan_model_fn(features, labels, mode, params):
       real_data=in_transform(targets),
       generator_inputs=in_transform(inputs))
 
+  outputs = out_transform(gan_model.generated_data)
+
   gan_loss = tf.contrib.gan.gan_loss(
       model=gan_model,
       generator_loss_fn=params.generator_loss_fn,
       discriminator_loss_fn=params.discriminator_loss_fn,
   )
-
-  outputs = out_transform(gan_model.generated_data)
 
   tf.summary.image('inputs', inputs, max_outputs=1)
   tf.summary.image('outputs', outputs, max_outputs=1)
