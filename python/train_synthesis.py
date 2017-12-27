@@ -5,30 +5,21 @@ from mrtoct import model
 
 
 def train(inputs_path, targets_path, checkpoint_path, params):
-  config = tf.ConfigProto()
-  config.gpu_options.allow_growth = True
-
-  estimator = tf.contrib.gan.estimator.GANEstimator(
-      add_summaries=None,
-      use_loss_summaries=False,
+  estimator = tf.estimator.Estimator(
+      model_fn=model.gan_model_fn,
       model_dir=checkpoint_path,
-      generator_fn=model.synthesis.generator_fn,
-      discriminator_fn=model.synthesis.discriminator_fn,
-      generator_loss_fn=model.synthesis.generator_loss_fn,
-      discriminator_loss_fn=model.synthesis.discriminator_loss_fn,
-      generator_optimizer=tf.train.AdamOptimizer(params.learn_rate,
-                                                 params.beta1_rate),
-      discriminator_optimizer=tf.train.AdamOptimizer(params.learn_rate,
-                                                     params.beta1_rate))
+      params=params)
 
   def input_fn():
-    return model.train_patch_input_fn(
+    inputs, targets = model.train_patch_input_fn(
         inputs_path=inputs_path,
         targets_path=targets_path,
         volume_shape=params.volume_shape,
         inputs_shape=params.inputs_shape,
         targets_shape=params.targets_shape,
         batch_size=params.batch_size)
+
+    return {'inputs': inputs}, {'targets': targets}
 
   estimator.train(input_fn)
 
@@ -42,7 +33,13 @@ def main(args):
       batch_size=10,
       inputs_shape=[32, 32, 32],
       targets_shape=[16, 16, 16],
-      volume_shape=[260, 340, 360, args.iteration])
+      volume_shape=[260, 340, 360, args.iteration],
+      weight_factor=0.5,
+      data_format='channels_last',
+      generator_fn=model.synthesis.generator_fn,
+      discriminator_fn=model.synthesis.discriminator_fn,
+      generator_loss_fn=tf.contrib.gan.losses.modified_generator_loss,
+      discriminator_loss_fn=tf.contrib.gan.losses.modified_discriminator_loss)
   hparams.parse(args.hparams)
 
   train(inputs_path=args.inputs_path,

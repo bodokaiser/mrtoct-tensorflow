@@ -63,8 +63,12 @@ def gan_model_fn(features, labels, mode, params):
   inputs = features['inputs']
 
   if params.data_format == 'channels_first':
-    in_transform = data.transform.DataFormat2D('channels_first')
-    out_transform = data.transform.DataFormat2D('channels_last')
+    if inputs.shape.ndims == 4:
+      in_transform = data.transform.DataFormat2D('channels_first')
+      out_transform = data.transform.DataFormat2D('channels_last')
+    if inputs.shape.ndims == 5:
+      in_transform = data.transform.DataFormat3D('channels_first')
+      out_transform = data.transform.DataFormat3D('channels_last')
   else:
     in_transform = out_transform = lambda x: x
 
@@ -97,15 +101,26 @@ def gan_model_fn(features, labels, mode, params):
       discriminator_loss_fn=params.discriminator_loss_fn,
   )
 
-  tf.summary.image('inputs', inputs, max_outputs=1)
-  tf.summary.image('outputs', outputs, max_outputs=1)
-  tf.summary.image('targets', targets, max_outputs=1)
-  tf.summary.image('residue', targets - outputs, max_outputs=1)
+  if inputs.shape.ndims == 4:
+    tf.summary.image('inputs', inputs, max_outputs=1)
+    tf.summary.image('outputs', outputs, max_outputs=1)
+    tf.summary.image('targets', targets, max_outputs=1)
+    tf.summary.image('residue', targets - outputs, max_outputs=1)
+
+  if inputs.shape.ndims == 5:
+    tf.summary.image('inputs', inputs[:, 16], max_outputs=1)
+    tf.summary.image('outputs', outputs[:, 8], max_outputs=1)
+    tf.summary.image('targets', targets[:, 8], max_outputs=1)
+    tf.summary.image('residue', targets[:, 8] - outputs[:, 8], max_outputs=1)
 
   with tf.name_scope('loss'):
     mae = tf.norm(targets - outputs, ord=1)
     mse = tf.norm(targets - outputs, ord=2)
-    gdl = tf.reduce_sum(tf.image.total_variation(targets - outputs))
+
+    if inputs.shape.ndims == 4:
+      gdl = losses.gradient_difference_loss_2d(targets, outputs)
+    if inputs.shape.ndims == 5:
+      gdl = losses.gradient_difference_loss_3d(targets, outputs)
 
     tf.summary.scalar('mean_squared_error', mse)
     tf.summary.scalar('mean_absolute_error', mae)
