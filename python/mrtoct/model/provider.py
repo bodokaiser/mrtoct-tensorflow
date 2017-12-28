@@ -91,3 +91,42 @@ def train_patch_input_fn(inputs_path, targets_path, volume_shape, inputs_shape,
 
     with tf.control_dependencies([patch_iterator.initializer]):
       return patch_iterator.get_next()
+
+
+def predict_patch_input_fn(inputs_path, volume_shape, inputs_shape,
+                           batch_size, offset, delta):
+  vshape = tf.convert_to_tensor(volume_shape)
+  pshape = tf.convert_to_tensor(inputs_shape)
+
+  with tf.name_scope('indices'):
+    indices = patch.sample_meshgrid_3d(
+        pshape[:3], vshape[:3] - pshape[:3], delta)
+    index_dataset = tf.data.Dataset.from_tensor_slices(indices)
+
+  with tf.name_scope('volume'):
+    volume_transform = data.transform.Compose([
+        data.transform.DecodeExample(),
+        data.transform.Normalize(),
+        data.transform.CenterPad3D(*volume_shape[:3]),
+        data.transform.Lambda(lambda x: tf.reshape(x, volume_shape)),
+    ])
+
+    volume_dataset = (tf.data
+                      .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
+                      .map(volume_transform)
+                      .skip(offset).take(1)
+                      .cache()
+                      .repeat())
+
+  with tf.name_scope('patch'):
+    def extract_patch_at(index, volume):
+      return index, data.transform.IndexCrop3D(inputs_shape, index)(volume)
+
+    patch_dataset = (tf.data.Dataset
+                     .zip((index_dataset, volume_dataset))
+                     .map(extract_patch_at)
+                     .batch(batch_size))
+
+    patch_iterator = patch_dataset.make_one_shot_iterator()
+
+    return patch_iterator.get_next()

@@ -8,3 +8,4 @@ from mrtoct.model.estimator import gan_model_fn
 from mrtoct.model.provider import train_slice_input_fn
 from mrtoct.model.provider import train_patch_input_fn
 from mrtoct.model.provider import predict_slice_input_fn
+from mrtoct.model.provider import predict_patch_input_fn
