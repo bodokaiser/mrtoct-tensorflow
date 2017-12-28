@@ -101,7 +101,7 @@ def predict_patch_input_fn(inputs_path, volume_shape, inputs_shape,
   with tf.name_scope('indices'):
     indices = patch.sample_meshgrid_3d(
         pshape[:3], vshape[:3] - pshape[:3], delta)
-    index_dataset = tf.data.Dataset.from_tensor_slices(indices)
+    index_dataset = tf.data.Dataset.from_tensor_slices(indices).take(10)
 
   with tf.name_scope('volume'):
     volume_transform = data.transform.Compose([

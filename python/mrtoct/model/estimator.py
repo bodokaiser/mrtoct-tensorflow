@@ -61,6 +61,7 @@ def cnn_model_fn(features, labels, mode, params):
 
 def gan_model_fn(features, labels, mode, params):
   inputs = features['inputs']
+  indices = features['indices']
 
   if params.data_format == 'channels_first':
     if inputs.shape.ndims == 4:
@@ -80,7 +81,7 @@ def gan_model_fn(features, labels, mode, params):
       outputs = out_transform(generator_fn(in_transform(inputs)))
 
     return tf.estimator.EstimatorSpec(
-        mode, {'inputs': inputs, 'outputs': outputs})
+        mode, {'inputs': inputs, 'outputs': outputs, 'indices': indices})
 
   targets = labels['targets']
 

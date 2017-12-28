@@ -1,6 +1,9 @@
 import argparse
 import numpy as np
+import nibabel as nb
 import tensorflow as tf
+
+from matplotlib import pyplot as plt
 
 from mrtoct import ioutil, model
 
@@ -15,7 +18,7 @@ def predict(inputs_path, outputs_path, checkpoint_path, params):
 
   def create_input_fn(offset):
     def input_fn():
-      index, inputs = model.predict_patch_input_fn(
+      indices, inputs = model.predict_patch_input_fn(
           offset=offset,
           delta=params.delta,
           inputs_path=inputs_path,
@@ -23,17 +26,29 @@ def predict(inputs_path, outputs_path, checkpoint_path, params):
           inputs_shape=params.inputs_shape,
           batch_size=params.batch_size)
 
-      return {'inputs': inputs, 'index': index}
+      return {'inputs': inputs, 'indices': indices}
     return input_fn
 
   predictions = estimator.predict(
       input_fn=create_input_fn(0),
       checkpoint_path=checkpoint_path)
 
-  outputs = [p['outputs'] for p in predictions]
+  volume = np.zeros(params.volume_shape)
 
-  print('foo')
-  print(outputs)
+  for p in predictions:
+    patch = p['outputs']
+    index = p['indices']
+
+    i = index[0] - 8
+    j = index[1] - 8
+    k = index[2] - 8
+
+    print(i, j, k)
+
+    volume[i:i + 16, j:j + 16, k:k + 16, -1] = patch[:, :, :, 0]
+
+  nb.viewers.OrthoSlicer3D(volume[:, :, :, -1])
+  plt.show()
 
 
 def main(args):
