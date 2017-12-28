@@ -9,7 +9,7 @@ def generate(input_path, output_path, chkpt_path, params):
   options = ioutil.TFRecordOptions
   compstr = options.get_compression_type_string(options)
 
-  volume_shape = [260, 340, 360, 1]
+  volume_shape = [300, 380, 400, 1]
   volume_transform = data.transform.Compose([
       data.transform.DecodeExample(),
       data.transform.Normalize(),
@@ -106,7 +106,7 @@ def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   hparams = tf.contrib.training.HParams(
-      sample_delta=5,
+      sample_delta=3,
       patch_shape=[32, 32, 32, 1])
   hparams.parse(args.hparams)
 
