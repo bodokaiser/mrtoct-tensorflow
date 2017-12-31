@@ -5,6 +5,9 @@ from mrtoct import data, ioutil, patch as p, util, model
 
 
 def generate(input_path, output_path, chkpt_path, params):
+  config = tf.ConfigProto(device_count={'GPU': 0})
+  config.log_device_placement = True
+
   encoder = ioutil.TFRecordEncoder()
   options = ioutil.TFRecordOptions
   compstr = options.get_compression_type_string(options)
@@ -85,7 +88,7 @@ def generate(input_path, output_path, chkpt_path, params):
 
   tf.logging.info('Computation graph completed')
 
-  with tf.Session() as sess:
+  with tf.Session(config=config) as sess:
     saver.restore(sess, chkpt_path)
 
     try:
@@ -107,17 +110,18 @@ def main(args):
 
   hparams = tf.contrib.training.HParams(
       sample_delta=3,
-      patch_shape=[32, 32, 32, 1])
+      patch_shape=[32, 32, 32, args.iteration])
   hparams.parse(args.hparams)
 
-  generate(args.input_path, args.output_path, args.chkpt_path, hparams)
+  generate(args.inputs_path, args.outputs_path, args.checkpoint_path, hparams)
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser('generate')
-  parser.add_argument('--input-path', required=True)
-  parser.add_argument('--output-path', required=True)
-  parser.add_argument('--chkpt-path', required=True)
+  parser = argparse.ArgumentParser('predict')
+  parser.add_argument('--iteration', type=int, required=True)
+  parser.add_argument('--inputs-path', required=True)
+  parser.add_argument('--outputs-path', required=True)
+  parser.add_argument('--checkpoint-path', required=True)
   parser.add_argument('--hparams', type=str, default='')
 
   main(parser.parse_args())
