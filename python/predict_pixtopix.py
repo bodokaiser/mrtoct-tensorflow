@@ -39,9 +39,7 @@ def predict(inputs_path, outputs_path, checkpoint_path, params):
         offset += 1
 
       volume = np.stack(outputs, axis=0)
-      volume -= volume.min()
-      volume /= volume.max()
-      volume *= float(np.iinfo(np.int32).max)
+      volume *= float(np.iinfo(np.int16).max)
 
       writer.write(encoder.encode(volume))
 

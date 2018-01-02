@@ -70,11 +70,22 @@ class DataFormat3D:
       return tf.transpose(x, self.perm)
 
 
-class Normalize:
+class ConstNormalization:
+  """Normalizes input by division through constant."""
+
+  def __init__(self, const):
+    self.const = const
+
+  def __call__(self, x):
+    with tf.name_scope('const_normalization'):
+      return tf.to_float(x) / self.const
+
+
+class MinMaxNormalization:
   """Normalizes input to [0,1]."""
 
   def __call__(self, x):
-    with tf.name_scope('normalize'):
+    with tf.name_scope('min_max_normalization'):
       x = tf.to_float(x)
       x -= tf.reduce_min(x)
       x /= tf.reduce_max(x)

@@ -6,7 +6,7 @@ from mrtoct import ioutil, data, patch
 def train_slice_input_fn(inputs_path, targets_path, slice_shape, batch_size):
   pre_transform = data.transform.Compose([
       data.transform.DecodeExample(),
-      data.transform.Normalize(),
+      data.transform.ConstNormalization(tf.uint16.max),
   ])
   post_transform = data.transform.Compose([
       data.transform.CropOrPad2D(*slice_shape),
@@ -36,7 +36,7 @@ def train_slice_input_fn(inputs_path, targets_path, slice_shape, batch_size):
 def predict_slice_input_fn(inputs_path, slice_shape, offset):
   pre_transform = data.transform.Compose([
       data.transform.DecodeExample(),
-      data.transform.Normalize(),
+      data.transform.ConstNormalization(tf.uint16.max),
   ])
   post_transform = data.transform.Compose([
       data.transform.CropOrPad2D(*slice_shape),
@@ -66,7 +66,7 @@ def train_patch_input_fn(inputs_path, targets_path, volume_shape, inputs_shape,
   with tf.name_scope('volume'):
     volume_transform = data.transform.Compose([
         data.transform.DecodeExample(),
-        data.transform.Normalize(),
+        data.transform.MinMaxNormalization(tf.uint16.max),
         data.transform.CenterPad3D(*volume_shape[:3]),
         data.transform.Lambda(lambda x: tf.reshape(x, volume_shape)),
     ])
@@ -106,7 +106,7 @@ def predict_patch_input_fn(inputs_path, volume_shape, inputs_shape,
   with tf.name_scope('volume'):
     volume_transform = data.transform.Compose([
         data.transform.DecodeExample(),
-        data.transform.Normalize(),
+        data.transform.MinMaxNormalization(),
         data.transform.CenterPad3D(*volume_shape[:3]),
         data.transform.Lambda(lambda x: tf.reshape(x, volume_shape)),
     ])

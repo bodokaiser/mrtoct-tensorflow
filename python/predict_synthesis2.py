@@ -6,7 +6,6 @@ from mrtoct import data, ioutil, patch as p, util, model
 
 def generate(input_path, output_path, chkpt_path, params):
   config = tf.ConfigProto(device_count={'GPU': 0})
-  config.log_device_placement = True
 
   encoder = ioutil.TFRecordEncoder()
   options = ioutil.TFRecordOptions
@@ -15,7 +14,7 @@ def generate(input_path, output_path, chkpt_path, params):
   volume_shape = [300, 380, 400, 1]
   volume_transform = data.transform.Compose([
       data.transform.DecodeExample(),
-      data.transform.Normalize(),
+      data.transform.MinMaxNormalization(),
       data.transform.CenterPad3D(*volume_shape[:3]),
       data.transform.Lambda(lambda x: tf.reshape(x, volume_shape)),
   ])
@@ -109,7 +108,7 @@ def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   hparams = tf.contrib.training.HParams(
-      sample_delta=3,
+      sample_delta=5,
       patch_shape=[32, 32, 32, args.iteration])
   hparams.parse(args.hparams)
 

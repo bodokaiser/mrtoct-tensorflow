@@ -28,8 +28,8 @@ def main(args):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   hparams = tf.contrib.training.HParams(
-      learn_rate=2e-4,
-      beta1_rate=5e-1,
+      learn_rate=1e-4,
+      beta1_rate=3e-1,
       batch_size=16,
       slice_shape=[384, 384],
       data_format='channels_first',
