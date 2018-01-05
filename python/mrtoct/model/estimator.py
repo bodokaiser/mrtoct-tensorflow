@@ -14,7 +14,7 @@ def cnn_model_fn(features, labels, mode, params):
     outputs = params.generator_fn(nchw_transform(inputs), params.data_format)
     outputs = nhwc_transform(outputs)
   else:
-    outputs = params.generator_fn(inputs)
+    outputs = params.generator_fn(inputs, params.data_format)
 
   if tf.estimator.ModeKeys.PREDICT == mode:
     return tf.estimator.EstimatorSpec(mode, {

@@ -9,7 +9,7 @@ from mrtoct import ioutil, data
 def compare(volume, slice, inputs_path, outputs_path, targets_path):
   pre_transform = data.transform.Compose([
       data.transform.DecodeExample(),
-      data.transform.Normalize(),
+      data.transform.ConstNormalization(tf.uint16.max),
   ])
   post_transform = data.transform.CropOrPad2D(384, 384)
 
