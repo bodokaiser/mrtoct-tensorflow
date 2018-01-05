@@ -25,7 +25,7 @@ def cnn_model_fn(features, labels, mode, params):
   tf.summary.image('inputs', inputs, max_outputs=1)
   tf.summary.image('outputs', outputs, max_outputs=1)
   tf.summary.image('targets', targets, max_outputs=1)
-  tf.summary.image('residue', targets - outputs, max_outputs=1)
+  tf.summary.image('residue', tf.abs(targets - outputs), max_outputs=1)
 
   mse = tf.losses.mean_squared_error(targets, outputs)
   mae = tf.losses.absolute_difference(targets, outputs)
@@ -35,28 +35,30 @@ def cnn_model_fn(features, labels, mode, params):
   tf.summary.scalar('mean_absolute_error', mae)
   tf.summary.scalar('gradient_difference_loss', gdl)
 
-  loss = 3 * mae + gdl
+  total_loss = 3 * mae + gdl
 
-  tf.summary.scalar('total_loss', loss)
+  tf.summary.scalar('total_loss', total_loss)
 
   vars = tf.trainable_variables()
 
   gdl_grad = tf.global_norm(tf.gradients(gdl, vars))
   mae_grad = tf.global_norm(tf.gradients(mae, vars))
+  total_grad = tf.global_norm(tf.gradients(mse, vars))
 
   tf.summary.scalar('gradient_difference_loss_gradient', gdl_grad)
   tf.summary.scalar('mean_absolute_error_gradient', mae_grad)
+  tf.summary.scalar('total_error_gradient', total_grad)
 
   if tf.estimator.ModeKeys.EVAL == mode:
     return tf.estimator.EstimatorSpec(
-        mode, {'outputs': outputs}, loss)
+        mode, {'outputs': outputs}, total_loss)
 
   optimizer = tf.train.AdamOptimizer(params.learn_rate, params.beta1_rate)
 
-  train = optimizer.minimize(loss, tf.train.get_global_step())
+  train = optimizer.minimize(total_loss, tf.train.get_global_step())
 
   return tf.estimator.EstimatorSpec(
-      mode, {'outputs': outputs}, loss, train)
+      mode, {'outputs': outputs}, total_loss, train)
 
 
 def gan_model_fn(features, labels, mode, params):
