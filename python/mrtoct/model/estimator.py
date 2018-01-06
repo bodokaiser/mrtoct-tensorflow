@@ -29,13 +29,13 @@ def cnn_model_fn(features, labels, mode, params):
 
   mse = tf.losses.mean_squared_error(targets, outputs)
   mae = tf.losses.absolute_difference(targets, outputs)
-  gdl = losses.gradient_difference_loss_2d(targets, outputs)
+  gdl = 1e-6 * losses.gradient_difference_loss_2d(targets, outputs)
 
   tf.summary.scalar('mean_squared_error', mse)
   tf.summary.scalar('mean_absolute_error', mae)
   tf.summary.scalar('gradient_difference_loss', gdl)
 
-  total_loss = 3 * mae + gdl
+  total_loss = mae + gdl
 
   tf.summary.scalar('total_loss', total_loss)
 

@@ -3,6 +3,9 @@ import tensorflow as tf
 
 from mrtoct import model
 
+INPUTS_MAX = 5200
+TARGETS_MAX = 3700
+
 
 def train(inputs_path, targets_path, checkpoint_path, params):
   config = tf.ConfigProto()
@@ -15,6 +18,8 @@ def train(inputs_path, targets_path, checkpoint_path, params):
 
   def input_fn():
     inputs, targets = model.train_slice_input_fn(
+        inputs_div=INPUTS_MAX,
+        targets_div=TARGETS_MAX,
         inputs_path=inputs_path,
         targets_path=targets_path,
         slice_shape=params.slice_shape,
