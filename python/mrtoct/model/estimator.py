@@ -63,7 +63,6 @@ def cnn_model_fn(features, labels, mode, params):
 
 def gan_model_fn(features, labels, mode, params):
   inputs = features['inputs']
-  indices = features['indices']
 
   if params.data_format == 'channels_first':
     if inputs.shape.ndims == 4:
@@ -83,7 +82,7 @@ def gan_model_fn(features, labels, mode, params):
       outputs = out_transform(generator_fn(in_transform(inputs)))
 
     return tf.estimator.EstimatorSpec(
-        mode, {'inputs': inputs, 'outputs': outputs, 'indices': indices})
+        mode, {'inputs': inputs, 'outputs': outputs})
 
   targets = labels['targets']
 
@@ -118,30 +117,10 @@ def gan_model_fn(features, labels, mode, params):
 
   with tf.name_scope('loss'):
     mae = tf.norm(targets - outputs, ord=1)
-    mse = tf.norm(targets - outputs, ord=2)
+    mae_grad = tf.global_norm(tf.gradients(mae, tf.trainable_variables()))
 
-    if inputs.shape.ndims == 4:
-      gdl = losses.gradient_difference_loss_2d(targets, outputs)
-    if inputs.shape.ndims == 5:
-      gdl = losses.gradient_difference_loss_3d(targets, outputs)
-
-    tf.summary.scalar('mean_squared_error', mse)
     tf.summary.scalar('mean_absolute_error', mae)
-    tf.summary.scalar('gradient_difference_loss', gdl)
-
-    loss = 3 * mae + gdl
-
-    tf.summary.scalar('total_loss', loss)
-
-    vars = tf.trainable_variables()
-
-    gdl_grad = tf.global_norm(tf.gradients(gdl, vars))
-    mae_grad = tf.global_norm(tf.gradients(mae, vars))
-    mse_grad = tf.global_norm(tf.gradients(mse, vars))
-
-    tf.summary.scalar('gradient_difference_loss_gradient', gdl_grad)
     tf.summary.scalar('mean_absolute_error_gradient', mae_grad)
-    tf.summary.scalar('mean_squared_error_gradient', mse_grad)
 
     real_score = gan_model.discriminator_real_outputs
     fake_score = gan_model.discriminator_gen_outputs
@@ -152,9 +131,14 @@ def gan_model_fn(features, labels, mode, params):
     gan_loss = tf.contrib.gan.losses.combine_adversarial_loss(
         gan_loss=gan_loss,
         gan_model=gan_model,
-        non_adversarial_loss=loss,
-        weight_factor=params.weight_factor,
-    )
+        non_adversarial_loss=mae,
+        weight_factor=params.weight_factor)
+
+    total_loss = gan_loss.generator_loss + gan_loss.discriminator_loss
+
+    tf.summary.scalar('total_loss', total_loss)
+    tf.summary.scalar('generator_loss', gan_loss.generator_loss)
+    tf.summary.scalar('discriminator_loss', gan_loss.discriminator_loss)
 
   with tf.name_scope('train'):
     generator_optimizer = tf.train.AdamOptimizer(
@@ -170,4 +154,4 @@ def gan_model_fn(features, labels, mode, params):
     train_op = tf.group(*list(train))
 
   return tf.estimator.EstimatorSpec(
-      mode, {'outputs': outputs}, loss, train_op)
+      mode, {'outputs': outputs}, total_loss, train_op)

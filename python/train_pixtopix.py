@@ -3,6 +3,9 @@ import tensorflow as tf
 
 from mrtoct import model
 
+INPUTS_MAX = 5200
+TARGETS_MAX = 3700
+
 
 def train(inputs_path, targets_path, checkpoint_path, params):
   estimator = tf.estimator.Estimator(
@@ -12,6 +15,8 @@ def train(inputs_path, targets_path, checkpoint_path, params):
 
   def input_fn():
     inputs, targets = model.train_slice_input_fn(
+        inputs_div=INPUTS_MAX,
+        targets_div=TARGETS_MAX,
         inputs_path=inputs_path,
         targets_path=targets_path,
         slice_shape=params.slice_shape,
@@ -33,8 +38,8 @@ def main(args):
       data_format='channels_first',
       generator_fn=model.pixtopix.generator_fn,
       discriminator_fn=model.pixtopix.discriminator_fn,
-      generator_loss_fn=tf.contrib.gan.losses.modified_generator_loss,
-      discriminator_loss_fn=tf.contrib.gan.losses.modified_discriminator_loss)
+      generator_loss_fn=tf.contrib.gan.losses.least_squares_generator_loss,
+      discriminator_loss_fn=tf.contrib.gan.losses.least_squares_discriminator_loss)
   hparams.parse(args.hparams)
 
   train(inputs_path=args.inputs_path,
