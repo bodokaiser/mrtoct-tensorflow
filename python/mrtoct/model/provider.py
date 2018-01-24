@@ -35,6 +35,46 @@ def train_slice_input_fn(inputs_div, inputs_path, targets_div, targets_path,
   return dataset.make_one_shot_iterator().get_next()
 
 
+def train_slice_input_fn2(inputs_div, inputs_path, targets_div, targets_path,
+                          maskings_div, maskings_path, slice_shape, batch_size):
+  decode_transform = data.transform.DecodeExample()
+  inputs_transform = data.transform.ConstNormalization(inputs_div)
+  targets_transform = data.transform.ConstNormalization(targets_div)
+  maskings_transform = data.transform.ConstNormalization(maskings_div)
+  slice_transform = data.transform.Compose([
+      data.transform.CropOrPad2D(*slice_shape),
+      data.transform.ExpandDims(),
+  ])
+
+  inputs_dataset = (tf.data
+                    .TFRecordDataset(inputs_path, ioutil.TFRecordCString)
+                    .map(decode_transform)
+                    .map(inputs_transform)
+                    .apply(tf.contrib.data.unbatch())
+                    .map(slice_transform))
+
+  targets_dataset = (tf.data
+                     .TFRecordDataset(targets_path, ioutil.TFRecordCString)
+                     .map(decode_transform)
+                     .map(targets_transform)
+                     .apply(tf.contrib.data.unbatch())
+                     .map(slice_transform))
+
+  maskings_dataset = (tf.data
+                      .TFRecordDataset(maskings_path, ioutil.TFRecordCString)
+                      .map(decode_transform)
+                      .map(maskings_transform)
+                      .apply(tf.contrib.data.unbatch())
+                      .map(slice_transform))
+
+  dataset = (tf.data.Dataset
+             .zip((inputs_dataset, targets_dataset, maskings_dataset))
+             .batch(batch_size)
+             .repeat())
+
+  return dataset.make_one_shot_iterator().get_next()
+
+
 def predict_slice_input_fn(inputs_div, inputs_path, slice_shape, offset):
   pre_transform = data.transform.Compose([
       data.transform.DecodeExample(),

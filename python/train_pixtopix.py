@@ -5,23 +5,26 @@ from mrtoct import model
 
 INPUTS_MAX = 5200
 TARGETS_MAX = 3700
+MASKINGS_MAX = 10000
 
 
-def train(inputs_path, targets_path, checkpoint_path, params):
+def train(inputs_path, targets_path, maskings_path, checkpoint_path, params):
   estimator = tf.estimator.Estimator(
       model_fn=model.gan_model_fn,
       model_dir=checkpoint_path,
       params=params)
 
   def input_fn():
-    inputs, targets = model.train_slice_input_fn(
+    inputs, targets, maskings = model.train_slice_input_fn2(
         inputs_div=INPUTS_MAX,
         targets_div=TARGETS_MAX,
+        maskings_div=MASKINGS_MAX,
         inputs_path=inputs_path,
         targets_path=targets_path,
+        maskings_path=maskings_path,
         slice_shape=params.slice_shape,
         batch_size=params.batch_size)
-    return {'inputs': inputs}, {'targets': targets}
+    return {'inputs': inputs, 'maskings': maskings}, {'targets': targets}
 
   estimator.train(input_fn)
 
@@ -44,6 +47,7 @@ def main(args):
 
   train(inputs_path=args.inputs_path,
         targets_path=args.targets_path,
+        maskings_path=args.maskings_path,
         checkpoint_path=args.checkpoint_path,
         params=hparams)
 
@@ -52,6 +56,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser('train')
   parser.add_argument('--inputs-path', required=True)
   parser.add_argument('--targets-path', required=True)
+  parser.add_argument('--maskings-path', required=True)
   parser.add_argument('--checkpoint-path', required=True)
   parser.add_argument('--hparams', type=str, default='')
 

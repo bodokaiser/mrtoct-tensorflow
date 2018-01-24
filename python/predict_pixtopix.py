@@ -4,6 +4,9 @@ import tensorflow as tf
 
 from mrtoct import ioutil, model
 
+INPUTS_MAX = 5200
+TARGETS_MAX = 3700
+
 
 def predict(inputs_path, outputs_path, checkpoint_path, params):
   encoder = ioutil.TFRecordEncoder()
@@ -17,6 +20,7 @@ def predict(inputs_path, outputs_path, checkpoint_path, params):
     def input_fn():
       inputs = model.predict_slice_input_fn(
           offset=offset,
+          inputs_div=INPUTS_MAX,
           slice_shape=params.slice_shape,
           inputs_path=inputs_path)
 
@@ -39,7 +43,7 @@ def predict(inputs_path, outputs_path, checkpoint_path, params):
         offset += 1
 
       volume = np.stack(outputs, axis=0)
-      volume *= float(np.iinfo(np.int16).max)
+      volume *= TARGETS_MAX
 
       writer.write(encoder.encode(volume))
 

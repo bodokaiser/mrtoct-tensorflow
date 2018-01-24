@@ -103,20 +103,25 @@ def gan_model_fn(features, labels, mode, params):
       discriminator_loss_fn=params.discriminator_loss_fn,
   )
 
+  residues = targets - outputs
+
+  if 'maskings' in features:
+    residues = tf.multiply(residues, features['maskings'])
+
   if inputs.shape.ndims == 4:
     tf.summary.image('inputs', inputs, max_outputs=1)
     tf.summary.image('outputs', outputs, max_outputs=1)
     tf.summary.image('targets', targets, max_outputs=1)
-    tf.summary.image('residue', targets - outputs, max_outputs=1)
+    tf.summary.image('residue', residues, max_outputs=1)
 
   if inputs.shape.ndims == 5:
     tf.summary.image('inputs', inputs[:, 16], max_outputs=1)
     tf.summary.image('outputs', outputs[:, 8], max_outputs=1)
     tf.summary.image('targets', targets[:, 8], max_outputs=1)
-    tf.summary.image('residue', targets[:, 8] - outputs[:, 8], max_outputs=1)
+    tf.summary.image('residue', residues[:, 8], max_outputs=1)
 
   with tf.name_scope('loss'):
-    mae = tf.norm(targets - outputs, ord=1)
+    mae = tf.norm(residues, ord=1) * 1e-7
     mae_grad = tf.global_norm(tf.gradients(mae, tf.trainable_variables()))
 
     tf.summary.scalar('mean_absolute_error', mae)
